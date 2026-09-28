@@ -1,0 +1,1207 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Daily Spark API",
+    "version": "1.0.0"
+  },
+  "paths": {
+    "/api/v1/posts": {
+      "get": {
+        "summary": "Posts",
+        "operationId": "posts_api_v1_posts_get",
+        "parameters": [
+          {
+            "name": "search",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 200,
+              "default": "",
+              "title": "Search"
+            }
+          },
+          {
+            "name": "themes",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 200,
+              "default": "",
+              "title": "Themes"
+            }
+          },
+          {
+            "name": "style",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "Cinematic",
+                    "Nature",
+                    "Minimal",
+                    "Urban",
+                    "Abstract"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Style"
+            }
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "newest",
+                "liked"
+              ],
+              "type": "string",
+              "default": "newest",
+              "title": "Sort"
+            }
+          },
+          {
+            "name": "date",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Date"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 1000000,
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 24,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "ids",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 3700
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Ids"
+            }
+          },
+          {
+            "name": "exclude",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Exclude"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Page"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/posts/{slug}": {
+      "get": {
+        "summary": "Post",
+        "operationId": "post_api_v1_posts__slug__get",
+        "parameters": [
+          {
+            "name": "slug",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Slug"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/collections/daily": {
+      "get": {
+        "summary": "Daily",
+        "operationId": "daily_api_v1_collections_daily_get",
+        "parameters": [
+          {
+            "name": "date",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Date"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Daily"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/collections": {
+      "get": {
+        "summary": "Collections",
+        "operationId": "collections_api_v1_collections_get",
+        "parameters": [
+          {
+            "name": "before",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Before"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 1000000,
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 24,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Collections"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/me": {
+      "get": {
+        "summary": "Me",
+        "operationId": "me_api_v1_me_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Profile"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      },
+      "delete": {
+        "summary": "Delete Me",
+        "operationId": "delete_me_api_v1_me_delete",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeleteAccount"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Deletion"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      },
+      "patch": {
+        "summary": "Update Me",
+        "operationId": "update_me_api_v1_me_patch",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProfileUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Profile"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/me/reactions": {
+      "get": {
+        "summary": "Reactions",
+        "operationId": "reactions_api_v1_me_reactions_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "ids",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 3700,
+              "default": "",
+              "title": "Ids"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Reaction"
+                  },
+                  "title": "Response Reactions Api V1 Me Reactions Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/me/{kind}": {
+      "get": {
+        "summary": "Private Collection",
+        "operationId": "private_collection_api_v1_me__kind__get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "kind",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "enum": [
+                "liked",
+                "saved"
+              ],
+              "type": "string",
+              "title": "Kind"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 1000000,
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 24,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Page"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/me/{kind}/{post_id}": {
+      "put": {
+        "summary": "React",
+        "operationId": "react_api_v1_me__kind___post_id__put",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "kind",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "enum": [
+                "likes",
+                "saves"
+              ],
+              "type": "string",
+              "title": "Kind"
+            }
+          },
+          {
+            "name": "post_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Post Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DesiredState"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReactionResult"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/health/live": {
+      "get": {
+        "summary": "Live",
+        "operationId": "live_api_v1_health_live_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/health/ready": {
+      "get": {
+        "summary": "Ready",
+        "operationId": "ready_api_v1_health_ready_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Asset": {
+        "properties": {
+          "src": {
+            "type": "string",
+            "title": "Src"
+          },
+          "width": {
+            "type": "integer",
+            "exclusiveMinimum": 0.0,
+            "title": "Width"
+          },
+          "height": {
+            "type": "integer",
+            "exclusiveMinimum": 0.0,
+            "title": "Height"
+          },
+          "type": {
+            "type": "string",
+            "const": "image/jpeg",
+            "title": "Type",
+            "default": "image/jpeg"
+          },
+          "alt": {
+            "type": "string",
+            "title": "Alt"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "src",
+          "width",
+          "height",
+          "alt"
+        ],
+        "title": "Asset"
+      },
+      "Collection": {
+        "properties": {
+          "date": {
+            "type": "string",
+            "format": "date",
+            "title": "Date"
+          },
+          "postCount": {
+            "type": "integer",
+            "title": "Postcount"
+          },
+          "representative": {
+            "$ref": "#/components/schemas/Post"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "date",
+          "postCount",
+          "representative"
+        ],
+        "title": "Collection"
+      },
+      "Collections": {
+        "properties": {
+          "collections": {
+            "items": {
+              "$ref": "#/components/schemas/Collection"
+            },
+            "type": "array",
+            "title": "Collections"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "offset": {
+            "type": "integer",
+            "title": "Offset"
+          },
+          "limit": {
+            "type": "integer",
+            "title": "Limit"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "collections",
+          "total",
+          "offset",
+          "limit"
+        ],
+        "title": "Collections"
+      },
+      "Daily": {
+        "properties": {
+          "date": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Date"
+          },
+          "posts": {
+            "items": {
+              "$ref": "#/components/schemas/Post"
+            },
+            "type": "array",
+            "title": "Posts"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "date",
+          "posts"
+        ],
+        "title": "Daily"
+      },
+      "DeleteAccount": {
+        "properties": {
+          "confirmation": {
+            "type": "string",
+            "const": "DELETE",
+            "title": "Confirmation"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "confirmation"
+        ],
+        "title": "DeleteAccount"
+      },
+      "Deletion": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "complete"
+            ],
+            "title": "Status"
+          },
+          "jobId": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Jobid"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "status",
+          "jobId"
+        ],
+        "title": "Deletion"
+      },
+      "DesiredState": {
+        "properties": {
+          "active": {
+            "type": "boolean",
+            "title": "Active"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "active"
+        ],
+        "title": "DesiredState"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "Page": {
+        "properties": {
+          "posts": {
+            "items": {
+              "$ref": "#/components/schemas/Post"
+            },
+            "type": "array",
+            "title": "Posts"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "offset": {
+            "type": "integer",
+            "title": "Offset"
+          },
+          "limit": {
+            "type": "integer",
+            "title": "Limit"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "posts",
+          "total",
+          "offset",
+          "limit"
+        ],
+        "title": "Page"
+      },
+      "Post": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "slug": {
+            "type": "string",
+            "title": "Slug"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "quote": {
+            "type": "string",
+            "title": "Quote"
+          },
+          "attribution": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Attribution"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          },
+          "publishedAt": {
+            "type": "string",
+            "format": "date",
+            "title": "Publishedat"
+          },
+          "themes": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "Discipline",
+                "Focus",
+                "Confidence",
+                "Resilience",
+                "Growth",
+                "Courage",
+                "Ambition",
+                "Patience",
+                "Calm",
+                "New Beginnings"
+              ]
+            },
+            "type": "array",
+            "title": "Themes"
+          },
+          "styles": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "Cinematic",
+                "Nature",
+                "Minimal",
+                "Urban",
+                "Abstract"
+              ]
+            },
+            "type": "array",
+            "title": "Styles"
+          },
+          "thumbnail": {
+            "$ref": "#/components/schemas/Asset"
+          },
+          "hero": {
+            "$ref": "#/components/schemas/Asset"
+          },
+          "mobileHero": {
+            "$ref": "#/components/schemas/Asset"
+          },
+          "versions": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/Asset"
+            },
+            "propertyNames": {
+              "enum": [
+                "mobile",
+                "desktop",
+                "whatsapp",
+                "status"
+              ]
+            },
+            "type": "object",
+            "title": "Versions"
+          },
+          "likeCount": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Likecount"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "slug",
+          "title",
+          "quote",
+          "description",
+          "publishedAt",
+          "themes",
+          "styles",
+          "thumbnail",
+          "hero",
+          "mobileHero",
+          "versions",
+          "likeCount"
+        ],
+        "title": "Post"
+      },
+      "Profile": {
+        "properties": {
+          "displayName": {
+            "type": "string",
+            "maxLength": 40,
+            "minLength": 1,
+            "title": "Displayname"
+          },
+          "themes": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "Discipline",
+                "Focus",
+                "Confidence",
+                "Resilience",
+                "Growth",
+                "Courage",
+                "Ambition",
+                "Patience",
+                "Calm",
+                "New Beginnings"
+              ]
+            },
+            "type": "array",
+            "maxItems": 10,
+            "title": "Themes"
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "likedCount": {
+            "type": "integer",
+            "title": "Likedcount"
+          },
+          "savedCount": {
+            "type": "integer",
+            "title": "Savedcount"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "displayName",
+          "id",
+          "likedCount",
+          "savedCount"
+        ],
+        "title": "Profile"
+      },
+      "ProfileUpdate": {
+        "properties": {
+          "displayName": {
+            "type": "string",
+            "maxLength": 40,
+            "minLength": 1,
+            "title": "Displayname"
+          },
+          "themes": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "Discipline",
+                "Focus",
+                "Confidence",
+                "Resilience",
+                "Growth",
+                "Courage",
+                "Ambition",
+                "Patience",
+                "Calm",
+                "New Beginnings"
+              ]
+            },
+            "type": "array",
+            "maxItems": 10,
+            "title": "Themes"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "displayName"
+        ],
+        "title": "ProfileUpdate"
+      },
+      "Reaction": {
+        "properties": {
+          "postId": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Postid"
+          },
+          "liked": {
+            "type": "boolean",
+            "title": "Liked"
+          },
+          "saved": {
+            "type": "boolean",
+            "title": "Saved"
+          },
+          "likeCount": {
+            "type": "integer",
+            "title": "Likecount"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "postId",
+          "liked",
+          "saved",
+          "likeCount"
+        ],
+        "title": "Reaction"
+      },
+      "ReactionResult": {
+        "properties": {
+          "postId": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Postid"
+          },
+          "liked": {
+            "type": "boolean",
+            "title": "Liked"
+          },
+          "saved": {
+            "type": "boolean",
+            "title": "Saved"
+          },
+          "likeCount": {
+            "type": "integer",
+            "title": "Likecount"
+          },
+          "likedCount": {
+            "type": "integer",
+            "title": "Likedcount"
+          },
+          "savedCount": {
+            "type": "integer",
+            "title": "Savedcount"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "postId",
+          "liked",
+          "saved",
+          "likeCount",
+          "likedCount",
+          "savedCount"
+        ],
+        "title": "ReactionResult"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "ctx": {
+            "type": "object",
+            "title": "Context"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      }
+    },
+    "securitySchemes": {
+      "HTTPBearer": {
+        "type": "http",
+        "scheme": "bearer"
+      }
+    }
+  }
+}

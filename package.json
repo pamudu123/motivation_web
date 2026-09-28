@@ -8,8 +8,11 @@
     "start": "next start",
     "typecheck": "tsc --noEmit",
     "test": "tsx --test tests/services.test.ts",
-    "test:e2e": "node scripts/verify.mjs",
-    "assets": "node scripts/prepare-assets.mjs"
+    "test:e2e": "node scripts/verify-backend.mjs",
+    "assets": "node scripts/prepare-assets.mjs",
+    "test:db": "node scripts/test-database.mjs",
+    "test:e2e:legacy": "node scripts/verify.mjs",
+    "api:types": "uv run --project backend python backend/scripts/export_openapi.py && openapi-typescript backend/openapi.json -o src/lib/api-schema.d.ts"
   },
   "dependencies": {
     "@fontsource-variable/dm-sans": "^5.2.8",
@@ -23,6 +26,7 @@
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.11.1",
+    "@electric-sql/pglite": "0.5.8",
     "@tailwindcss/postcss": "4.3.3",
     "@types/node": "^22.19.0",
     "@types/react": "^19.2.0",

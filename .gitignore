@@ -55,3 +55,5 @@ test-results/
 *.[tT][iI][fF][fF]
 *.[hH][eE][iI][cC]
 *.[hH][eE][iI][fF]
+
+.next-test/

@@ -5,8 +5,18 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 from pydantic.alias_generators import to_camel
 
-Theme = Literal["Discipline", "Focus", "Confidence", "Resilience", "Growth", "Courage",
-                "Ambition", "Patience", "Calm", "New Beginnings"]
+Theme = Literal[
+    "Discipline",
+    "Focus",
+    "Confidence",
+    "Resilience",
+    "Growth",
+    "Courage",
+    "Ambition",
+    "Patience",
+    "Calm",
+    "New Beginnings",
+]
 Style = Literal["Cinematic", "Nature", "Minimal", "Urban", "Abstract"]
 Format = Literal["mobile", "desktop", "whatsapp", "status"]
 

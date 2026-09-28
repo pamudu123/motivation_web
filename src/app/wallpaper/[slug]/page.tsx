@@ -10,6 +10,11 @@ export async function generateMetadata({
   return {
     title: post?.title || "Wallpaper not found",
     description: post?.quote,
+    ...(post ? {
+      alternates: { canonical: new URL(`/wallpaper/${post.slug}`, process.env.APP_ORIGIN || "http://localhost:3000").href },
+      openGraph: { title: post.title, description: post.quote, images: [{ url: post.hero.src, width: post.hero.width, height: post.hero.height, alt: post.hero.alt }] },
+      twitter: { card: "summary_large_image" as const, title: post.title, description: post.quote, images: [post.hero.src] },
+    } : {}),
   };
 }
 export default async function Page({

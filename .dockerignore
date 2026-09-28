@@ -1,0 +1,14 @@
+node_modules
+.next
+.git
+.agents
+.env*
+backend/.env*
+backend/.venv
+backend/__pycache__
+assets
+other
+scrollcraft
+test-results
+public/wallpapers
+supabase/.temp

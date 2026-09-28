@@ -26,11 +26,11 @@ const moods = [
   { name: "Calm", hint: "Take a breath", symbol: "≈" },
   { name: "Growth", hint: "Keep becoming", symbol: "⌁" },
 ];
-export function Today({
+function PublishedToday({
   collection,
   earlier,
 }: {
-  collection: { date: string | null; posts: Post[] };
+  collection: { date: string; posts: Post[] };
   earlier: Post[];
 }) {
   const ref = useRef<HTMLDivElement>(null);
@@ -41,7 +41,6 @@ export function Today({
   });
   const y = useTransform(scrollYProgress, [0, 1], [0, 35]);
   const featured = collection.posts[0];
-  if (!featured || !collection.date) return <main id="main" className="page"><div className="empty-state"><h1>A little inspiration is on its way.</h1><p>No collection has been published yet. Please check back soon.</p></div></main>;
   const isToday = new Date().toISOString().slice(0, 10) === collection.date;
   return (
     <main id="main" className="page today-page">
@@ -177,4 +176,9 @@ export function Today({
       </div>
     </main>
   );
+}
+
+export function Today({collection,earlier}: {collection:{date:string|null;posts:Post[]};earlier:Post[]}) {
+  if(!collection.date || !collection.posts.length) return <main id="main" className="page"><div className="empty-state"><h1>A little inspiration is on its way.</h1><p>No collection has been published yet. Please check back soon.</p></div></main>;
+  return <PublishedToday collection={{date:collection.date,posts:collection.posts}} earlier={earlier}/>;
 }

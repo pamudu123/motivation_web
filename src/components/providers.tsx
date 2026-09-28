@@ -32,6 +32,7 @@ export function Providers({ children }: { children: ReactNode }) {
   const currentUser = useRef<string | null>(null);
   const knownPosts = useRef(new Map<string, Post>());
   const queue = useRef(new Set<string>());
+  const versions = useRef(new Map<string, number>());
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const notify = useCallback((text: string) => setToast(t => ({text, id: t.id+1})), []);
   const register = useCallback((post: Post) => {
@@ -43,11 +44,12 @@ export function Providers({ children }: { children: ReactNode }) {
       const ids = [...queue.current]; queue.current.clear();
       if (!currentUser.current) return;
       const generation = epoch.current;
+      const captured = new Map(ids.map(id=>[id,versions.current.get(id)??0]));
       try {
         for (let i=0; i<ids.length; i+=100) {
           const rows = await accountService.reactions(ids.slice(i,i+100));
           if (generation !== epoch.current) return;
-          setReactions(old => { const next = {...old}; for (const r of rows) next[r.postId] = r; return next; });
+          setReactions(old => { const next = {...old}; for (const r of rows) if(captured.get(r.postId)===(versions.current.get(r.postId)??0)) next[r.postId] = r; return next; });
         }
       } catch { if (generation === epoch.current) notify("Your reactions could not load. Refresh to retry."); }
     }, 40);
@@ -55,7 +57,7 @@ export function Providers({ children }: { children: ReactNode }) {
   useEffect(() => {
     let live = true;
     const clear = () => {
-      epoch.current++; currentUser.current = null; setProfile(null); setReactions({}); lock.current=false; setBusy(null);
+      epoch.current++; currentUser.current = null; setError(""); versions.current.clear(); setProfile(null); setReactions({}); lock.current=false; setBusy(null);
     };
     const sync = async (uid: string | null) => {
       if (uid !== currentUser.current) clear();
@@ -108,6 +110,7 @@ export function Providers({ children }: { children: ReactNode }) {
     const before = reactions[id];
     if (!before) { const p=knownPosts.current.get(id); if(p) register(p); notify("Please wait for your reactions to load."); return; }
     const generation=epoch.current;
+    versions.current.set(id,(versions.current.get(id)??0)+1);
     lock.current=true; setBusy(id);
     const active=!before[kind];
     setReactions(r=>({...r,[id]:{...before,[kind]:active,likeCount:before.likeCount+(kind==="liked"?(active?1:-1):0)}}));
@@ -122,7 +125,7 @@ export function Providers({ children }: { children: ReactNode }) {
   }
   return <MotionConfig reducedMotion="user"><Context.Provider value={{ profile,ready,busy,error,reactions,revision,register,
     retry:()=>setRetryId(v=>v+1), openAuth:()=>setAuth(true), react, notify,
-    signOut:async()=>{try{await accountService.signOut();localStorage.removeItem(PENDING_KEY);setProfile(null);setReactions({});notify("You are signed out.");focusMain();}catch{notify("Sign out failed. Please try again.");}},
+    signOut:async()=>{try{await accountService.signOut();epoch.current++;currentUser.current=null;localStorage.removeItem(PENDING_KEY);setProfile(null);setReactions({});notify("You are signed out.");focusMain();}catch{notify("Sign out failed. Please try again.");}},
     update:async(displayName,selected)=>{const generation=epoch.current;try{const p=await accountService.update({displayName,themes:selected});if(generation!==epoch.current)return false;setProfile(p);notify("Profile updated.");return true;}catch{notify("Your profile could not be saved.");return false;}}
   }}>{children}
   {auth && <AuthDialog onClose={()=>setAuth(false)} notification={toast}/>}

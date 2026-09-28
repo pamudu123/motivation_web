@@ -1,67 +1,53 @@
 # Daily Spark
 
-A responsive motivational wallpaper frontend built with Next.js, React, TypeScript, Tailwind CSS and Motion. Twenty original quote designs span four daily collections. Branding lives in `src/lib/config.ts`.
+A motivational wallpaper website with a Next.js frontend, Python/FastAPI backend and Supabase PostgreSQL, Auth and Storage. The existing gallery, previews and responsive UI are retained.
 
 ## Run locally
 
-Use Node.js 22.19 or newer in the Node 22 release line, and npm.
+Use Node 22.19+, Python 3.12 and uv. Configure `.env.local` from `.env.example` and `backend/.env` from `backend/.env.example`.
 
-```bash
+```text
 npm ci
-npm run dev
+uv sync --project backend --frozen
 ```
 
-Open [localhost:3000](http://localhost:3000). No API keys or environment variables are needed. Images and fonts are local, including the actual downloadable JPEG files.
+In a backend terminal: `cd backend` then `uv run uvicorn app.main:app --reload --port 8000`.
+In a frontend terminal: `npm run dev`, then open http://localhost:3000.
 
-```bash
-npm run build
-npm start
-```
+See [backend setup and operations](docs/backend-setup.md) for Supabase configuration, migrations, auth providers, publishing and deployment. An empty homepage is expected until reviewed content is published. API errors never silently fall back to demo content.
 
-## Included
+## Features
 
-- Today: featured wallpaper, latest five, theme discovery and previous collections.
-- Explore: quote/title/theme search, multiple themes (OR matching), style filtering, sorting and pagination. Filters and loaded item count live in the URL.
-- `/wallpaper/[slug]`: refreshable detail pages, related designs and Screen Studio previews for mobile, desktop and available WhatsApp formats.
-- Like, unlike, save and unsave; guests resume the selected action once after demo sign-in.
-- Private Saved and Liked views, editable profile name and favourite themes.
-- Native sharing with clipboard and selectable-link fallbacks.
-- Real image downloads, plain-image mode, optional phone/desktop/chat overlays, reduced motion and mobile navigation.
+- Daily five, published archive, theme/style search and paginated discovery.
+- Direct wallpaper pages, device previews and downloads from Supabase Storage.
+- Supabase Google/email authentication integration; persistent profiles, likes and private saved collections.
+- Server-validated sessions, database row-level security and transactional like totals.
+- Restricted Python import/publishing commands, account deletion and retry worker.
+- Separate frontend/backend containers behind an Nginx gateway.
 
-## Demo boundaries
-
-Google and email authentication are **simulations**, explicitly identified in the dialog. No provider is connected and no email is sent. The email field is not persisted. There are no passwords or authentication tokens.
-
-One simulated account (`local-demo-user`) is shared by the demo sign-in choices. Its name, preferences, likes and saves are stored in this browser's `localStorage`; the session flag is only a UI flag, not a security boundary. Signing out preserves the local collection. Clearing site data resets everything. “Private” saves are separate from public like counts, but production privacy requires a backend with real authorization.
-
-Sample like counts are illustrative. Collection dates are fixed at September 24–27, 2026. The site shows the newest published collection and its real date if the current day has no collection; it does not generate new designs automatically. Dates use UTC consistently.
-
-## Integration
-
-See [docs/frontend-integration.md](docs/frontend-integration.md) for models, service contracts, downloads and production connection points. Replace `contentService` in `src/lib/content.ts` and `accountService` in `src/lib/account.ts`; keep components and asset contracts stable.
-
-There is no admin interface, Python publishing pipeline, payment flow, video or community system in this build.
+Google OAuth, custom SMTP, the server-only administrative key, reviewed initial artwork and a production domain still require configuration before public launch. No AI generation, scheduling, payments, videos or admin dashboard are included.
 
 ## Verification
 
-```bash
+```text
 npm run typecheck
 npm test
+npm run test:db
+uv run --project backend pytest backend/tests
+uv run --project backend ruff check backend
+npm run api:types
 npm run build
-# With the app running and Google Chrome installed:
-npm run test:e2e
 ```
 
-Browser verification uses headless Chrome, disables native pointer capture/lock, exercises complete user flows and checks phone/tablet/desktop layouts with axe. Screenshots and results are written to ignored `test-results/`. `TEST_URL` can point it at another local port. Actual iOS/Android hardware still needs a device pass.
+Browser fixtures and real local Supabase verification have separate setup in [the operations guide](docs/backend-setup.md). Tests with fixture sessions are not proof of real Google/email delivery. See [backend verification](docs/backend-verification.md) for recorded results and remaining release gates.
 
-See [verification results and visual evidence](docs/frontend-verification.md). Use `node scripts/contact-sheet.mjs test-results/release` to rebuild the retained contact sheet from the release browser run.
+## Documentation
 
-## Assets and design
+- [Backend implementation plan](docs/backend_plan.md)
+- [Frontend integration contracts](docs/frontend-integration.md)
+- [Remaining UI and manual release checks](docs/ui_remaining.md)
+- [Artwork and creative prompts](docs/artwork.md)
 
-Original AI-created landscape masters are in `assets/source/`; quote compositions and delivery files are in `public/wallpapers/`. No external stock photography is redistributed. Details and generation prompts are recorded in [docs/artwork.md](docs/artwork.md). Fonts use the SIL Open Font License; the Barlow license is in `assets/fonts/OFL.txt` and installed font packages carry their licenses.
+Images and original artwork are ignored by Git. Published delivery images come from Supabase; a fresh checkout does not require local wallpaper files. `npm run assets` is optional and requires a separately supplied source-artwork bundle. The ignored local app icon is optional. Fonts retain their bundled SIL Open Font licenses.
 
-`npm run assets` deterministically rebuilds the demo JPEG compositions using Sharp. It does not generate imagery or publish content. Existing committed assets are sufficient for running the app.
-
-The user-supplied Scrollcraft skill informed the gallery grammar, motion restraint, mobile art direction and Screen Studio interaction. The creative brief is in [scrollcraft/builds/daily-spark/BRIEF.md](scrollcraft/builds/daily-spark/BRIEF.md). The React app uses Motion/CSS rather than the standalone scroll engine.
-
-Stack references: [Next.js installation](https://nextjs.org/docs/app/getting-started/installation), [Tailwind's Next.js setup](https://tailwindcss.com/docs/installation/framework-guides/nextjs).
+The supplied Scrollcraft skill informed the gallery, restrained motion and preview interaction. The React app uses Motion/CSS rather than the standalone scroll engine. Branding is configured in `src/lib/config.ts`.

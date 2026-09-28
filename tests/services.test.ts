@@ -1,101 +1,38 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
-import sharp from "sharp";
-import { contentService, filterPosts, posts } from "../src/lib/content";
-import { accountService } from "../src/lib/account";
+import { contentService, searchParams } from "../src/lib/content";
+import { safeReturnPath, readPending, PENDING_KEY } from "../src/lib/auth";
+import { ApiError } from "../src/lib/api";
 
-test("twenty unique designs, four dated collections and exactly five in the latest", async () => {
-  assert.equal(posts.length, 20);
-  assert.equal(new Set(posts.map((p) => p.id)).size, 20);
-  const collection = await contentService.daily("2026-09-28");
-  assert.equal(collection.date, "2026-09-27");
-  assert.equal(collection.posts.length, 5);
-  for (const date of new Set(posts.map((p) => p.publishedAt)))
-    assert.equal(posts.filter((p) => p.publishedAt === date).length, 5);
+test("filters encode safely and retain offset pagination",()=>{
+ const q=new URLSearchParams(searchParams({search:"a & b",themes:["Focus","New Beginnings"],offset:104,limit:8}));
+ assert.equal(q.get("search"),"a & b");assert.equal(q.get("themes"),"Focus,New Beginnings");assert.equal(q.get("offset"),"104");
 });
-test("theme filters use OR, while search and style narrow the result", () => {
-  const result = filterPosts({
-    themes: ["Focus", "Calm"],
-    search: "quiet",
-    style: "Minimal",
-  });
-  assert.deepEqual(
-    result.posts.map((p) => p.slug),
-    ["quiet-is-strength"],
-  );
-  assert.equal(filterPosts({ search: "nothing_matches_this" }).total, 0);
-  assert.equal(filterPosts({ date: "2026-09-26" }).total, 5);
+test("external and auth return paths cannot redirect login away",()=>{
+ for(const p of ["https://evil.test","//evil.test","/auth/callback",null])assert.equal(safeReturnPath(p),"/profile");
+ assert.equal(safeReturnPath("/explore?themes=Focus"),"/explore?themes=Focus");
 });
-test("sorting, pagination and direct slug lookup", async () => {
-  const first = filterPosts({ sort: "liked", limit: 8 });
-  const second = filterPosts({ sort: "liked", offset: 8, limit: 8 });
-  assert.equal(first.total, 20);
-  assert.equal(first.posts.length, 8);
-  assert.ok(
-    first.posts.every((p, i, a) => !i || a[i - 1].likeCount >= p.likeCount),
-  );
-  assert.equal(
-    first.posts.filter((p) => second.posts.some((q) => q.id === p.id)).length,
-    0,
-  );
-  assert.equal(
-    (await contentService.bySlug("one-step-closer"))?.id,
-    "one-step-closer",
-  );
-  assert.equal(await contentService.bySlug("missing"), null);
+test("404 maps to missing content, upstream failures do not become fake posts",async()=>{
+ const original=globalThis.fetch;
+ try{
+ globalThis.fetch=async()=>new Response(JSON.stringify({error:{message:"Missing",code:"not_found"}}),{status:404});
+ assert.equal(await contentService.bySlug("missing"),null);
+ globalThis.fetch=async()=>new Response(JSON.stringify({error:{message:"Unavailable",code:"service_unavailable"}}),{status:503});
+ await assert.rejects(contentService.bySlug("test"),ApiError);
+ }finally{globalThis.fetch=original;}
 });
-test("every advertised asset exists with the correct dimensions and JPEG type", async () => {
-  for (const p of posts) {
-    assert.ok(p.versions.mobile && p.versions.desktop);
-    assert.ok(p.quote && p.thumbnail.alt);
-    for (const asset of [
-      p.thumbnail,
-      p.hero,
-      p.mobileHero,
-      ...Object.values(p.versions),
-    ]) {
-      const metadata = await sharp(
-        await readFile(`public${asset.src}`),
-      ).metadata();
-      assert.equal(metadata.width, asset.width, asset.src);
-      assert.equal(metadata.height, asset.height, asset.src);
-      assert.equal(metadata.format, "jpeg");
-    }
-    assert.notEqual(p.versions.mobile!.src, p.versions.desktop!.src);
-  }
+test("empty daily response and cancellation propagate through adapter",async()=>{
+ const original=globalThis.fetch;const controller=new AbortController();
+ try{
+ globalThis.fetch=async(_url,options)=>{assert.equal(options?.cache,"no-store");return new Response(JSON.stringify({date:null,posts:[]}));};
+ assert.deepEqual(await contentService.daily(),{date:null,posts:[]});
+ globalThis.fetch=async(_url,options)=>{assert.equal(options?.signal,controller.signal);throw new DOMException("Aborted","AbortError");};
+ await assert.rejects(contentService.search({},controller.signal),{name:"AbortError"});
+ }finally{globalThis.fetch=original;}
 });
-test("demo likes are idempotent, saves are separate, profile persists after sign out", async () => {
-  const store = new Map<string, string>();
-  Object.defineProperty(globalThis, "localStorage", {
-    configurable: true,
-    value: {
-      getItem: (key: string) => store.get(key) ?? null,
-      setItem: (key: string, value: string) => store.set(key, value),
-      removeItem: (key: string) => store.delete(key),
-    },
-  });
-  assert.equal(await accountService.read(), null);
-  const p = await accountService.signIn("google-demo");
-  assert.equal(p.id, "local-demo-user");
-  await accountService.react("liked", "one-step-closer", true);
-  await accountService.react("liked", "one-step-closer", true);
-  assert.deepEqual((await accountService.read())?.liked, ["one-step-closer"]);
-  assert.deepEqual((await accountService.read())?.saved, []);
-  await accountService.react("saved", "find-your-focus", true);
-  await accountService.react("liked", "one-step-closer", false);
-  await accountService.signOut();
-  assert.equal(await accountService.read(), null);
-  const again = await accountService.signIn("email-demo");
-  assert.deepEqual(again.saved, ["find-your-focus"]);
-  assert.deepEqual(again.liked, []);
-  Object.defineProperty(globalThis, "localStorage", {
-    configurable: true,
-    value: {
-      getItem: () => {
-        throw new Error("Storage blocked");
-      },
-    },
-  });
-  await assert.rejects(accountService.read());
+test("pending guest actions expire and never accept a false desired state",()=>{
+ const store=new Map<string,string>();Object.defineProperty(globalThis,"localStorage",{configurable:true,value:{getItem:(k:string)=>store.get(k)??null,removeItem:(k:string)=>store.delete(k)}});
+ store.set(PENDING_KEY,JSON.stringify({id:"x",kind:"saved",postId:"p",active:true,expires:Date.now()-1}));assert.equal(readPending(),null);
+ store.set(PENDING_KEY,JSON.stringify({id:"x",kind:"saved",postId:"p",active:true,expires:Date.now()+10000,returnPath:"//evil.test"}));assert.equal(readPending()?.returnPath,"/profile");
+ store.set(PENDING_KEY,JSON.stringify({id:"x",kind:"saved",postId:"p",active:false,expires:Date.now()+10000}));assert.equal(readPending(),null);
 });

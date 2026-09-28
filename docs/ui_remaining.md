@@ -1,5 +1,7 @@
 # Remaining UI Work
 
+> Backend integration update (September 28, 2026): real API/auth adapters, empty-catalogue handling and pagination are now implemented. See [backend verification](backend-verification.md) for current results and hosted launch prerequisites. Demo-era authentication evidence below is historical, not production provider verification.
+
 Reviewed: September 28, 2026.
 
 ## Summary
