@@ -69,6 +69,106 @@ async function screenshot(name, p = page) {
 }
 try {
   await check(
+    "Search focus and removable collapsed filter summary",
+    async () => {
+      for (const width of [1440, 390, 360]) {
+        await page.setViewportSize({ width, height: 844 });
+        await page.goto(base);
+        await settled();
+        await page
+          .getByRole("button", { name: "Search wallpapers", exact: true })
+          .click();
+        await page.waitForFunction(
+          () => document.activeElement?.id === "wallpaper-search",
+        );
+        await page.goto(
+          `${base}/explore?search=quiet&themes=Focus,Calm&style=Nature&date=2026-09-27&sort=liked&limit=16`,
+        );
+        await settled();
+        const original = page.url();
+        for (let i = 0; i < 2; i++) {
+          await page
+            .getByRole("button", { name: "Search wallpapers", exact: true })
+            .click();
+          await page.waitForFunction(
+            () => document.activeElement?.id === "wallpaper-search",
+          );
+          assert.equal(page.url(), original);
+          assert.equal(
+            await page.locator("#wallpaper-search").inputValue(),
+            "quiet",
+          );
+        }
+        const summary = page.getByRole("region", {
+          name: "Active filters",
+          exact: true,
+        });
+        assert.equal(await summary.getByRole("button").count(), 5);
+        if (width < 640) {
+          assert.equal(
+            await page.locator("#explore-filters").isVisible(),
+            false,
+          );
+          assert.match(await page.locator(".filter-toggle").innerText(), /5/);
+        }
+        await summary
+          .getByRole("button", { name: "Remove Theme: Focus", exact: true })
+          .click();
+        await settled();
+        assert.equal(new URL(page.url()).searchParams.get("themes"), "Calm");
+        assert.equal(new URL(page.url()).searchParams.get("limit"), null);
+        await page.goBack();
+        await settled();
+        assert.equal(await summary.getByRole("button").count(), 5);
+        await page.reload();
+        await settled();
+        assert.equal(await summary.getByRole("button").count(), 5);
+        await summary
+          .getByRole("button", { name: "Remove Style: Nature", exact: true })
+          .click();
+        await settled();
+        assert.equal(new URL(page.url()).searchParams.get("style"), null);
+        assert.equal(
+          new URL(page.url()).searchParams.get("date"),
+          "2026-09-27",
+        );
+        await summary
+          .getByRole("button", {
+            name: "Remove Date: September 27, 2026",
+            exact: true,
+          })
+          .click();
+        await summary
+          .getByRole("button", { name: "Remove Search: quiet", exact: true })
+          .click();
+        await settled();
+        assert.equal(await page.locator("#wallpaper-search").inputValue(), "");
+        assert.equal(new URL(page.url()).searchParams.get("sort"), "liked");
+        await page.getByRole("button", { name: "Reset filters" }).click();
+        await settled();
+        assert.equal(await summary.count(), 0);
+        await page
+          .locator("#wallpaper-search")
+          .fill("verylongsearch".repeat(15));
+        await settled();
+        assert.ok(
+          await page.evaluate(
+            () => document.documentElement.scrollWidth <= innerWidth,
+          ),
+        );
+        const axe = await new AxeBuilder({ page })
+          .withTags(["wcag2a", "wcag2aa", "wcag21aa"])
+          .analyze();
+        assert.deepEqual(axe.violations, []);
+        await page.screenshot({
+          path: `${out}/filter-summary-${width}.png`,
+          fullPage: true,
+        });
+      }
+      await page.setViewportSize({ width: 1440, height: 1000 });
+    },
+  );
+  await check(
     "Today has exactly five designs and no broken imagery",
     async () => {
       await page.goto(base);

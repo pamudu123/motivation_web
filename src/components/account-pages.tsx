@@ -1,5 +1,6 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { focusMain } from "@/lib/focus";
 import Link from "next/link";
 import {
   ArrowUpRight,
@@ -11,7 +12,7 @@ import {
 } from "lucide-react";
 import { useAccount } from "./providers";
 import { Gallery, Empty } from "./gallery";
-import { contentService } from "@/lib/content";
+import { accountService } from "@/lib/account";
 import { site } from "@/lib/config";
 import { themes, type Theme, type Post } from "@/lib/models";
 export function Guest({ destination }: { destination: string }) {
@@ -33,19 +34,20 @@ export function Guest({ destination }: { destination: string }) {
           this space your own.
         </p>
         <button className="button primary" onClick={openAuth}>
-          Try the demo account <ArrowUpRight size={18} />
+          Sign in <ArrowUpRight size={18} />
         </button>
         <Link className="inline-link" href="/explore">
           Just browsing? Explore wallpapers
         </Link>
-        <small>Demo account data stays in this browser.</small>
+        <small>Your collections stay private to your account.</small>
       </div>
     </main>
   );
 }
 export function CollectionPage({ kind }: { kind: "saved" | "liked" }) {
-  const { profile, ready } = useAccount();
+  const { profile, ready, error, retry } = useAccount();
   if (!ready) return <AccountLoading />;
+  if (error) return <main id="main" className="page"><Empty title="Your account could not load.">{error}<button className="button primary" onClick={retry}>Try again</button></Empty></main>;
   if (!profile) return <Guest destination={`your ${kind} collection`} />;
   return (
     <main id="main" className="page collection-page">
@@ -64,27 +66,40 @@ export function CollectionPage({ kind }: { kind: "saved" | "liked" }) {
         </p>
       </div>
       <div className="collection-tabs">
-        <Link className={kind === "saved" ? "active" : ""} href="/saved">
+        <Link
+          aria-current={kind === "saved" ? "page" : undefined}
+          className={kind === "saved" ? "active" : ""}
+          href="/saved"
+        >
           <Bookmark size={17} />
-          Saved <span>{profile.saved.length}</span>
+          Saved <span>{profile.savedCount}</span>
         </Link>
-        <Link className={kind === "liked" ? "active" : ""} href="/liked">
+        <Link
+          aria-current={kind === "liked" ? "page" : undefined}
+          className={kind === "liked" ? "active" : ""}
+          href="/liked"
+        >
           <Heart size={17} />
-          Liked <span>{profile.liked.length}</span>
+          Liked <span>{profile.likedCount}</span>
         </Link>
       </div>
-      <PrivateGallery ids={profile[kind]} kind={kind} />
+      <PrivateGallery key={`${profile.id}-${kind}`} kind={kind} />
     </main>
   );
 }
 export function ProfilePage() {
-  const { profile, ready, signOut, update } = useAccount();
+  const { profile, ready, signOut, update, error, retry } = useAccount();
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState("");
   const [selected, setSelected] = useState<Theme[]>([]);
   const [pending, setPending] = useState(false);
   const [tab, setTab] = useState<"saved" | "liked">("saved");
+  const editButton = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    if (editing) document.getElementById("display-name")?.focus();
+  }, [editing]);
   if (!ready) return <AccountLoading />;
+  if (error) return <main id="main" className="page"><Empty title="Your account could not load.">{error}<button className="button primary" onClick={retry}>Try again</button></Empty></main>;
   if (!profile) return <Guest destination="your profile" />;
   return (
     <main id="main" className="page profile-page">
@@ -98,6 +113,7 @@ export function ProfilePage() {
           <p>Collecting a little inspiration, one day at a time.</p>
         </div>
         <button
+          ref={editButton}
           className="button secondary"
           onClick={() => {
             setName(profile.displayName);
@@ -116,7 +132,10 @@ export function ProfilePage() {
             e.preventDefault();
             if (!name.trim()) return;
             setPending(true);
-            if (await update(name.trim(), selected)) setEditing(false);
+            if (await update(name.trim(), selected)) {
+              setEditing(false);
+              editButton.current?.focus();
+            }
             setPending(false);
           }}
         >
@@ -181,7 +200,7 @@ export function ProfilePage() {
           onClick={() => setTab("saved")}
         >
           <Bookmark size={17} />
-          Saved <span>{profile.saved.length}</span>
+          Saved <span>{profile.savedCount}</span>
         </button>
         <button
           className={tab === "liked" ? "active" : ""}
@@ -189,10 +208,11 @@ export function ProfilePage() {
           onClick={() => setTab("liked")}
         >
           <Heart size={17} />
-          Liked <span>{profile.liked.length}</span>
+          Liked <span>{profile.likedCount}</span>
         </button>
       </div>
-      <PrivateGallery ids={profile[tab]} kind={tab} />
+      <PrivateGallery key={`${profile.id}-${tab}`} kind={tab} />
+      <DeleteAccount />
       <div className="profile-bottom">
         <p>
           Demo profile · Preferences, likes and saves are stored on this browser
@@ -214,72 +234,55 @@ function AccountLoading() {
     </main>
   );
 }
-function PrivateGallery({
-  ids,
-  kind,
-}: {
-  ids: string[];
-  kind: "saved" | "liked";
-}) {
-  const [items, setItems] = useState<Post[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(false);
-  const [retry, setRetry] = useState(0);
-  const key = ids.join(",");
-  useEffect(() => {
-    let active = true;
-    setLoading(true);
-    setError(false);
-    contentService
-      .search({ ids, limit: 100 })
-      .then((result) => {
-        if (active) setItems(result.posts);
-      })
-      .catch(() => {
-        if (active) setError(true);
-      })
-      .finally(() => {
-        if (active) setLoading(false);
-      });
-    return () => {
-      active = false;
-    };
-  }, [key, retry]);
-  if (error)
-    return (
-      <Empty title="Your collection couldn’t load.">
-        Your saved choices are still here.
-        <button
-          className="button primary"
-          onClick={() => setRetry((n) => n + 1)}
-        >
-          Try again
-        </button>
-      </Empty>
-    );
-  if (loading && !items.length)
-    return (
-      <div
-        className="skeleton skeleton-hero"
-        aria-label="Loading your collection"
-        aria-busy="true"
-      />
-    );
-  if (items.length) return <Gallery posts={items} />;
-  return (
-    <Empty
-      title={
-        kind === "saved"
-          ? "Your collection starts with a spark."
-          : "Find a message you love."
+function PrivateGallery({ kind }: { kind: "saved" | "liked" }) {
+  const { revision, profile } = useAccount();
+  const [items,setItems]=useState<Post[]>([]);
+  const [total,setTotal]=useState(0);
+  const [pages,setPages]=useState(1);
+  const [loading,setLoading]=useState(true);
+  const [error,setError]=useState(false);
+  const [retry,setRetry]=useState(0);
+  useEffect(()=>{
+    const controller=new AbortController();
+    setLoading(true);setError(false);
+    async function load(){
+      const collected=new Map<string,Post>();
+      let count=0;
+      for(let page=0;page<pages;page++){
+        const result=await accountService.collection(kind,page*8,8,controller.signal);
+        for(const p of result.posts)collected.set(p.id,p);
+        count=result.total;
+        if((page+1)*8>=count)break;
       }
-    >
-      {kind === "saved"
-        ? "Tap the bookmark on any wallpaper to keep it here."
-        : "Tap the heart on a wallpaper and it will appear here."}
-      <Link className="button primary" href="/explore">
-        Find your next spark <ArrowUpRight size={17} />
-      </Link>
-    </Empty>
-  );
+      if(!controller.signal.aborted){
+        const focused=document.activeElement as HTMLElement|null;
+        const removed=focused?.closest(".gallery-card");
+        setItems([...collected.values()]);setTotal(count);
+        if(removed)requestAnimationFrame(()=>{if(!focused?.isConnected)focusMain();});
+      }
+    }
+    void load().catch(()=>{if(!controller.signal.aborted)setError(true);}).finally(()=>{if(!controller.signal.aborted)setLoading(false);});
+    return ()=>controller.abort();
+  },[kind,pages,revision,retry,profile?.id]);
+  if(error)return <Empty title="Your collection couldn?t load.">Your choices are still saved.<button className="button primary" onClick={()=>setRetry(v=>v+1)}>Try again</button></Empty>;
+  if(loading&&!items.length)return <div className="skeleton skeleton-hero" aria-label="Loading your collection" aria-busy="true"/>;
+  if(items.length)return <><Gallery posts={items}/>{pages*8<total&&<button className="button primary" disabled={loading} onClick={()=>setPages(v=>v+1)}>{loading?"Loading?":"Load more"}</button>}</>;
+  return <Empty title={kind==="saved"?"Your collection starts with a spark.":"Find a message you love."}>Tap the {kind==="saved"?"bookmark":"heart"} on any wallpaper.<Link className="button primary" href="/explore">Find your next spark <ArrowUpRight size={17}/></Link></Empty>;
+}
+function DeleteAccount(){
+  const { signOut,openAuth }=useAccount();
+  const [confirm,setConfirm]=useState(false);
+  const [busy,setBusy]=useState(false);
+  const [message,setMessage]=useState("");
+  return <section className="profile-bottom" aria-label="Account management">
+    <button className="button secondary" onClick={()=>setConfirm(v=>!v)}>Delete account</button>
+    {confirm&&<div><p>This permanently removes your profile, likes and saved collection. Sign in again first if your session is older than five minutes.</p>
+    <button className="button secondary" onClick={openAuth}>Sign in again</button>
+    <button className="button primary" disabled={busy} onClick={async()=>{
+      setBusy(true);setMessage("");
+      try{const result=await accountService.deleteAccount();sessionStorage.setItem("daily-spark-deletion",result.status);await signOut();window.location.assign("/auth/deleted");}
+      catch(e){setMessage(e instanceof Error?e.message:"Deletion could not be requested.");}finally{setBusy(false);}
+    }}>{busy?"Requesting deletion?":"Confirm permanent deletion"}</button><button className="button secondary" onClick={()=>setConfirm(false)}>Cancel</button></div>}
+    {message&&<p role="alert">{message}</p>}
+  </section>;
 }

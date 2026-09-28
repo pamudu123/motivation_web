@@ -1,0 +1,18 @@
+[project]
+name = "daily-spark-api"
+version = "0.1.0"
+requires-python = ">=3.12,<3.13"
+dependencies = ["fastapi>=0.115", "uvicorn[standard]>=0.34", "supabase>=2.15", "pydantic-settings>=2.8", "pillow>=11", "httpx>=0.28"]
+
+[dependency-groups]
+dev = ["pytest>=8", "pytest-asyncio>=0.25", "ruff>=0.11"]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+

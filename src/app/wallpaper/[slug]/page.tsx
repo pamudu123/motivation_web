@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { contentService } from "@/lib/content";
+import { contentService } from "@/lib/server-content";
 import { Detail } from "@/components/detail";
 export async function generateMetadata({
   params,

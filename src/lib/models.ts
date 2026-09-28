@@ -32,7 +32,7 @@ export interface Post {
   slug: string;
   title: string;
   quote: string;
-  attribution?: string;
+  attribution?: string | null;
   description: string;
   publishedAt: string;
   themes: Theme[];
@@ -47,8 +47,8 @@ export interface Profile {
   id: string;
   displayName: string;
   themes: Theme[];
-  liked: string[];
-  saved: string[];
+  likedCount: number;
+  savedCount: number;
 }
 export interface SearchQuery {
   search?: string;
@@ -66,18 +66,9 @@ export interface SearchResult {
   total: number;
 }
 export interface ContentService {
-  daily(date?: string): Promise<{ date: string; posts: Post[] }>;
-  search(query: SearchQuery): Promise<SearchResult>;
+  daily(date?: string): Promise<{ date: string | null; posts: Post[] }>;
+  search(query: SearchQuery, signal?: AbortSignal): Promise<SearchResult>;
   bySlug(slug: string): Promise<Post | null>;
 }
-export interface AccountService {
-  read(): Promise<Profile | null>;
-  signIn(method: "google-demo" | "email-demo"): Promise<Profile>;
-  signOut(): Promise<void>;
-  update(profile: Profile): Promise<Profile>;
-  react(
-    kind: "liked" | "saved",
-    postId: string,
-    active: boolean,
-  ): Promise<Profile>;
-}
+export interface Reaction { postId: string; liked: boolean; saved: boolean; likeCount: number; }
+export interface ReactionResult extends Reaction { likedCount: number; savedCount: number; }

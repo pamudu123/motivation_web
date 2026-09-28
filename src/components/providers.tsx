@@ -1,201 +1,148 @@
 "use client";
-
-import {
-  createContext,
-  useCallback,
-  useContext,
-  useEffect,
-  useRef,
-  useState,
-  type ReactNode,
-} from "react";
+import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import { MotionConfig } from "motion/react";
-import { Bookmark, Check, Mail, Sparkles, X } from "lucide-react";
+import { Check, Mail, Sparkles, X } from "lucide-react";
 import { accountService } from "@/lib/account";
-import { themes, type Profile, type Theme } from "@/lib/models";
-type Intent = { kind: "liked" | "saved"; id: string };
+import { authClient, readPending, PENDING_KEY } from "@/lib/auth";
+import { focusMain } from "@/lib/focus";
+import { themes, type Profile, type Theme, type Reaction, type Post } from "@/lib/models";
+type Kind = "liked" | "saved";
 type AccountContext = {
-  profile: Profile | null;
-  ready: boolean;
-  busy: string | null;
-  openAuth: () => void;
-  react: (kind: Intent["kind"], id: string) => void;
-  signOut: () => Promise<void>;
-  update: (name: string, selected: Theme[]) => Promise<boolean>;
+  profile: Profile | null; ready: boolean; busy: string | null; error: string;
+  reactions: Record<string, Reaction>; revision: number;
+  register: (post: Post) => void; retry: () => void;
+  openAuth: () => void; react: (kind: Kind, id: string) => void;
+  signOut: () => Promise<void>; update: (name: string, selected: Theme[]) => Promise<boolean>;
   notify: (message: string) => void;
 };
 const Context = createContext<AccountContext | null>(null);
-export function useAccount() {
-  const value = useContext(Context);
-  if (!value) throw new Error("Account provider missing");
-  return value;
-}
-
+export function useAccount() { return useContext(Context)!; }
 export function Providers({ children }: { children: ReactNode }) {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [ready, setReady] = useState(false);
+  const [error, setError] = useState("");
   const [busy, setBusy] = useState<string | null>(null);
   const [auth, setAuth] = useState(false);
-  const [toast, setToast] = useState("");
-  const intent = useRef<Intent | null>(null);
+  const [toast, setToast] = useState({text: "", id: 0});
+  const [reactions, setReactions] = useState<Record<string, Reaction>>({});
+  const [revision, setRevision] = useState(0);
+  const [retryId, setRetryId] = useState(0);
+  const epoch = useRef(0);
   const lock = useRef(false);
-  const notify = useCallback((message: string) => setToast(message), []);
-  useEffect(() => {
-    const read = () =>
-      accountService
-        .read()
-        .then(setProfile)
-        .catch(() =>
-          notify(
-            "Local demo data could not be read. Check browser storage permissions.",
-          ),
-        )
-        .finally(() => setReady(true));
-    void read();
-    window.addEventListener("storage", read);
-    return () => window.removeEventListener("storage", read);
+  const currentUser = useRef<string | null>(null);
+  const knownPosts = useRef(new Map<string, Post>());
+  const queue = useRef(new Set<string>());
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const notify = useCallback((text: string) => setToast(t => ({text, id: t.id+1})), []);
+  const register = useCallback((post: Post) => {
+    knownPosts.current.set(post.id, post);
+    queue.current.add(post.id);
+    if (timer.current) return;
+    timer.current = setTimeout(async () => {
+      timer.current = null;
+      const ids = [...queue.current]; queue.current.clear();
+      if (!currentUser.current) return;
+      const generation = epoch.current;
+      try {
+        for (let i=0; i<ids.length; i+=100) {
+          const rows = await accountService.reactions(ids.slice(i,i+100));
+          if (generation !== epoch.current) return;
+          setReactions(old => { const next = {...old}; for (const r of rows) next[r.postId] = r; return next; });
+        }
+      } catch { if (generation === epoch.current) notify("Your reactions could not load. Refresh to retry."); }
+    }, 40);
   }, [notify]);
   useEffect(() => {
-    if (toast) {
-      const timer = setTimeout(() => setToast(""), 4500);
-      return () => clearTimeout(timer);
-    }
-  }, [toast]);
-  async function react(kind: Intent["kind"], id: string) {
+    let live = true;
+    const clear = () => {
+      epoch.current++; currentUser.current = null; setProfile(null); setReactions({}); lock.current=false; setBusy(null);
+    };
+    const sync = async (uid: string | null) => {
+      if (uid !== currentUser.current) clear();
+      currentUser.current = uid;
+      const generation = epoch.current;
+      if (!uid) { setReady(true); return; }
+      setReady(false); setError("");
+      try {
+        let p = await accountService.read();
+        if (!live || generation !== epoch.current) return;
+        const pending = readPending();
+        if (pending && p && !window.location.pathname.startsWith("/auth/")) {
+          const apply = async () => {
+            if (readPending()?.id !== pending.id) return;
+            await accountService.react(pending.kind, pending.postId, true);
+            localStorage.removeItem(PENDING_KEY);
+          };
+          try {
+            if (navigator.locks) await navigator.locks.request("spark-pending", apply); else await apply();
+            p = await accountService.read();
+          } catch { notify("Signed in, but your pending action could not be saved. Please try again."); }
+        }
+        if (!live || generation !== epoch.current) return;
+        setProfile(p); setAuth(false); setRevision(v=>v+1);
+        for (const post of knownPosts.current.values()) register(post);
+      } catch (e) {
+        if (live && generation === epoch.current) setError(e instanceof Error ? e.message : "Your account could not load.");
+      } finally { if (live && generation === epoch.current) setReady(true); }
+    };
+    let unsubscribe = () => {};
+    try {
+      const client = authClient();
+      void client.auth.getSession().then(({data}) => sync(data.session?.user.id ?? null)).catch(e => {setError(e.message);setReady(true);});
+      const { data } = client.auth.onAuthStateChange((event, session) => {
+        if (event === "INITIAL_SESSION" || event === "TOKEN_REFRESHED") return;
+        // Defer SDK calls outside the auth callback lock.
+        setTimeout(() => { if (live) void sync(session?.user.id ?? null); },0);
+      });
+      unsubscribe = () => data.subscription.unsubscribe();
+    } catch (e) { setError(e instanceof Error ? e.message : "Sign-in unavailable."); setReady(true); }
+    return () => { live=false; epoch.current++; unsubscribe(); if(timer.current) clearTimeout(timer.current); timer.current=null; };
+  }, [retryId, register, notify]);
+  async function react(kind: Kind, id: string) {
     if (!ready || lock.current) return;
     if (!profile) {
-      intent.current = { kind, id };
-      setAuth(true);
-      return;
+      try { localStorage.setItem(PENDING_KEY, JSON.stringify({id: crypto.randomUUID(), kind, postId:id, active:true, returnPath:window.location.pathname+window.location.search, expires:Date.now()+1800000})); }
+      catch { notify("Allow browser storage to keep this action during sign-in."); }
+      setAuth(true); return;
     }
-    lock.current = true;
-    setBusy(id);
-    const before = profile;
-    const active = !profile[kind].includes(id);
-    setProfile({
-      ...profile,
-      [kind]: active
-        ? [...profile[kind], id]
-        : profile[kind].filter((v) => v !== id),
-    });
+    const before = reactions[id];
+    if (!before) { const p=knownPosts.current.get(id); if(p) register(p); notify("Please wait for your reactions to load."); return; }
+    const generation=epoch.current;
+    lock.current=true; setBusy(id);
+    const active=!before[kind];
+    setReactions(r=>({...r,[id]:{...before,[kind]:active,likeCount:before.likeCount+(kind==="liked"?(active?1:-1):0)}}));
     try {
-      setProfile(await accountService.react(kind, id, active));
-      if (kind === "saved")
-        notify(
-          active
-            ? "Added to your saved collection."
-            : "Removed from your saved collection.",
-        );
-    } catch {
-      setProfile(before);
-      notify("That change could not be saved. Please try again.");
-    } finally {
-      lock.current = false;
-      setBusy(null);
-    }
+      const result=await accountService.react(kind,id,active);
+      if(generation!==epoch.current) return;
+      setReactions(r=>({...r,[id]:result}));
+      setProfile(p=>p?{...p,likedCount:result.likedCount,savedCount:result.savedCount}:null);
+      setRevision(v=>v+1); notify(active ? (kind==="liked"?"Like added.":"Wallpaper saved.") : "Removed from your collection.");
+    } catch { if(generation===epoch.current) {setReactions(r=>({...r,[id]:before}));notify("That change could not be saved. Please try again.");} }
+    finally {if(generation===epoch.current){lock.current=false;setBusy(null);}}
   }
-  async function signedIn(next: Profile) {
-    setProfile(next);
-    const pending = intent.current;
-    intent.current = null;
-    if (pending) {
-      try {
-        const updated = await accountService.react(
-          pending.kind,
-          pending.id,
-          true,
-        );
-        setProfile(updated);
-        notify(
-          pending.kind === "saved"
-            ? "Signed in. Wallpaper saved."
-            : "Signed in. Like added.",
-        );
-      } catch {
-        notify(
-          "Signed in, but the action could not be saved. Please try again.",
-        );
-      }
-    } else notify("Welcome to your demo account.");
-  }
-  return (
-    <MotionConfig reducedMotion="user">
-      <Context.Provider
-        value={{
-          profile,
-          ready,
-          busy,
-          openAuth: () => {
-            intent.current = null;
-            setAuth(true);
-          },
-          react,
-          notify,
-          signOut: async () => {
-            try {
-              await accountService.signOut();
-              setProfile(null);
-              notify("You are signed out.");
-            } catch {
-              notify("Sign out failed. Please try again.");
-            }
-          },
-          update: async (displayName, selected) => {
-            if (!profile) return false;
-            try {
-              setProfile(
-                await accountService.update({
-                  ...profile,
-                  displayName,
-                  themes: selected,
-                }),
-              );
-              notify("Profile updated.");
-              return true;
-            } catch {
-              notify("Your profile could not be saved. Please try again.");
-              return false;
-            }
-          },
-        }}
-      >
-        {children}
-        {auth && (
-          <AuthDialog
-            onClose={() => {
-              intent.current = null;
-              setAuth(false);
-            }}
-            onSignedIn={signedIn}
-          />
-        )}
-        <div className="toast" role="status" aria-live="polite">
-          {toast && (
-            <>
-              <Check size={18} />
-              {toast}
-              <button
-                aria-label="Dismiss notification"
-                onClick={() => setToast("")}
-              >
-                <X size={16} />
-              </button>
-            </>
-          )}
-        </div>
-      </Context.Provider>
-    </MotionConfig>
-  );
+  return <MotionConfig reducedMotion="user"><Context.Provider value={{ profile,ready,busy,error,reactions,revision,register,
+    retry:()=>setRetryId(v=>v+1), openAuth:()=>setAuth(true), react, notify,
+    signOut:async()=>{try{await accountService.signOut();localStorage.removeItem(PENDING_KEY);setProfile(null);setReactions({});notify("You are signed out.");focusMain();}catch{notify("Sign out failed. Please try again.");}},
+    update:async(displayName,selected)=>{const generation=epoch.current;try{const p=await accountService.update({displayName,themes:selected});if(generation!==epoch.current)return false;setProfile(p);notify("Profile updated.");return true;}catch{notify("Your profile could not be saved.");return false;}}
+  }}>{children}
+  {auth && <AuthDialog onClose={()=>setAuth(false)} notification={toast}/>}
+  <div className="toast" role="status" aria-live="polite" aria-atomic="true">{!auth&&toast.text&&<><Check size={18} aria-hidden="true"/><span key={toast.id}>{toast.text}</span><button aria-label="Dismiss notification" onClick={()=>{setToast(t=>({...t,text:""}));focusMain();}}><X size={16}/></button></>}</div>
+  </Context.Provider></MotionConfig>;
 }
 
 function AuthDialog({
   onClose,
-  onSignedIn,
+  notification,
 }: {
   onClose: () => void;
-  onSignedIn: (p: Profile) => Promise<void>;
+  notification: { text: string; id: number };
 }) {
   const ref = useRef<HTMLDialogElement>(null);
+  const [opener] = useState(() =>
+    typeof document === "undefined"
+      ? null
+      : (document.activeElement as HTMLElement | null),
+  );
   const [stage, setStage] = useState<"signin" | "email" | "themes">("signin");
   const [pending, setPending] = useState(false);
   const [error, setError] = useState("");
@@ -230,12 +177,14 @@ function AuthDialog({
     }
   }
   useEffect(() => {
-    if (stage !== "signin")
-      ref.current?.querySelector<HTMLHeadingElement>("#auth-title")?.focus();
+    ref.current?.querySelector<HTMLHeadingElement>("#auth-title")?.focus();
   }, [stage]);
   useEffect(() => {
-    const previous = document.activeElement as HTMLElement | null;
+    if (error) ref.current?.querySelector<HTMLElement>("[role=alert]")?.focus();
+  }, [error]);
+  useEffect(() => {
     ref.current?.showModal();
+    ref.current?.querySelector<HTMLHeadingElement>("#auth-title")?.focus();
     const overflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     if (!window.history.state?.sparkDialog)
@@ -249,24 +198,21 @@ function AuthDialog({
     return () => {
       document.body.style.overflow = overflow;
       window.removeEventListener("popstate", pop);
-      previous?.focus();
+      requestAnimationFrame(() => {
+        if (ref.current?.open) return;
+        if (opener?.isConnected) opener.focus();
+        else focusMain();
+      });
     };
   }, []);
-  async function enter(method: "google-demo" | "email-demo") {
+  async function enter(method: "google" | "email") {
     if (pending) return;
-    setPending(true);
-    setError("");
+    setPending(true); setError("");
     try {
-      const p = await accountService.signIn(method);
-      await onSignedIn(p);
-      setStage("themes");
-    } catch {
-      setError(
-        "Demo sign in could not finish. Allow browser storage and try again.",
-      );
-    } finally {
-      setPending(false);
-    }
+      await accountService.signIn(method, email);
+      if (method === "email") setStage("email");
+    } catch (e) { setError(e instanceof Error ? e.message : "Sign in could not finish. Please try again."); }
+    finally { setPending(false); }
   }
   return (
     <dialog
@@ -321,6 +267,7 @@ function AuthDialog({
             disabled={pending}
             onClick={async () => {
               setPending(true);
+              setError("");
               if (
                 await account.update(
                   account.profile?.displayName || "Spark Explorer",
@@ -328,6 +275,10 @@ function AuthDialog({
                 )
               )
                 dismiss();
+              else
+                setError(
+                  "Your preferences could not be saved. Please try again, or skip this step.",
+                );
               setPending(false);
             }}
           >
@@ -345,29 +296,19 @@ function AuthDialog({
           <p>
             Like the moments that resonate. Save a little inspiration for later.
           </p>
-          <div className="demo-note">
-            <Bookmark size={16} />
-            <span>
-              <strong>Try the demo account</strong>
-              <br />
-              Stored only in this browser. No real Google connection or email
-              delivery.
-            </span>
-          </div>
           {stage === "email" ? (
             <div className="email-success">
               <Check />
-              <h3>Your demo link is ready.</h3>
+              <h3>Check your email.</h3>
               <p>
-                No email was sent. Use the button below to simulate opening a
-                magic link.
+                Open the sign-in link we sent to your email address. It can be used once.
               </p>
               <button
                 className="button primary full"
                 disabled={pending}
-                onClick={() => enter("email-demo")}
+                onClick={() => enter("email")}
               >
-                {pending ? "Signing in…" : "Open demo magic link"}
+                {pending ? "Signing in…" : "Resend magic link"}
               </button>
               <button
                 className="button text-button full"
@@ -381,13 +322,12 @@ function AuthDialog({
               <button
                 className="button google full"
                 disabled={pending}
-                onClick={() => enter("google-demo")}
+                onClick={() => enter("google")}
               >
                 <span className="google-mark" aria-hidden="true">
                   G
                 </span>
                 {pending ? "Signing in…" : "Continue with Google"}
-                <span className="small-label">DEMO</span>
               </button>
               <div className="or">
                 <span>or use email</span>
@@ -395,7 +335,7 @@ function AuthDialog({
               <form
                 onSubmit={(e) => {
                   e.preventDefault();
-                  if (!pending) setStage("email");
+                  if (!pending) void enter("email");
                 }}
               >
                 <label htmlFor="email">Email address</label>
@@ -414,21 +354,33 @@ function AuthDialog({
                   disabled={pending}
                 >
                   <Mail size={18} />
-                  Create demo magic link
+                  Send magic link
                 </button>
               </form>
               <p className="fineprint">
-                No passwords. Email is not stored or sent anywhere.
+                No passwords. We use your email to send a secure sign-in link.
               </p>
             </>
           )}
         </>
       )}
       {error && (
-        <p className="error-message" role="alert">
+        <p className="error-message" role="alert" tabIndex={-1}>
           {error}
         </p>
       )}
+      <p
+        className="dialog-status"
+        role="status"
+        aria-live="polite"
+        aria-atomic="true"
+      >
+        <span key={notification.id}>
+          {pending
+            ? "Please wait. Completing your request."
+            : notification.text}
+        </span>
+      </p>
     </dialog>
   );
 }

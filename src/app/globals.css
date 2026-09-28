@@ -72,6 +72,25 @@ select:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 5px;
 }
+[tabindex="-1"]:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 5px;
+}
+button,
+a,
+input,
+select,
+[tabindex] {
+  scroll-margin-block: 110px;
+}
+.error-message,
+.dialog-status,
+.toast span {
+  overflow-wrap: anywhere;
+}
+.dialog-status:not(:empty) {
+  margin-top: 16px;
+}
 ::selection {
   background: var(--accent);
   color: var(--canvas);
@@ -771,6 +790,27 @@ input::placeholder {
 }
 .filter-area {
   margin-top: 25px;
+}
+.active-filter-summary {
+  margin-top: 18px;
+}
+.active-filter-label {
+  display: block;
+  margin-bottom: 8px;
+  color: var(--muted);
+  font-size: 12px;
+}
+.active-filter-summary .chip {
+  min-height: 44px;
+  max-width: 100%;
+  text-align: left;
+}
+.active-filter-summary .chip span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.active-filter-summary .chip svg {
+  flex-shrink: 0;
 }
 .chips {
   display: flex;
@@ -1537,8 +1577,13 @@ input:not([type="checkbox"]) {
 }
 .toast > svg {
   color: #c5ddb2;
+  flex-shrink: 0;
+}
+.toast span {
+  min-width: 0;
 }
 .toast button {
+  flex-shrink: 0;
   display: grid;
   place-items: center;
   width: 28px;

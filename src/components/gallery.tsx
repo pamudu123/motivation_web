@@ -77,25 +77,27 @@ export function Reactions({
   post: Post;
   expanded?: boolean;
 }) {
-  const { profile, react, ready, busy } = useAccount();
-  const liked = !!profile?.liked.includes(post.id);
-  const saved = !!profile?.saved.includes(post.id);
+  const { profile, react, ready, busy, reactions, register } = useAccount();
+  useEffect(() => { register(post); }, [post.id, post.likeCount, register]);
+  const state = reactions[post.id];
+  const liked = !!state?.liked;
+  const saved = !!state?.saved;
   return (
     <div className={`reactions ${expanded ? "expanded" : ""}`}>
       <button
         aria-label={`${liked ? "Unlike" : "Like"} ${post.title}`}
         aria-pressed={liked}
-        disabled={!ready || busy === post.id}
+        disabled={!ready || busy === post.id || (!!profile && !state)}
         className={liked ? "is-liked" : ""}
         onClick={() => react("liked", post.id)}
       >
         <Heart size={17} fill={liked ? "currentColor" : "none"} />
-        <span>{post.likeCount + Number(liked)}</span>
+        <span>{state?.likeCount ?? post.likeCount}</span>
       </button>
       <button
         aria-label={`${saved ? "Unsave" : "Save"} ${post.title}`}
         aria-pressed={saved}
-        disabled={!ready || busy === post.id}
+        disabled={!ready || busy === post.id || (!!profile && !state)}
         className={saved ? "is-saved" : ""}
         onClick={() => react("saved", post.id)}
       >

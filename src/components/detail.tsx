@@ -32,6 +32,9 @@ export function Detail({ post, related }: { post: Post; related: Post[] }) {
   useEffect(() => {
     if (window.matchMedia("(min-width: 900px)").matches) setFormat("desktop");
   }, []);
+  useEffect(() => {
+    if (shareLink) document.getElementById("share-link")?.focus();
+  }, [shareLink]);
   async function download() {
     if (!asset || downloading) return;
     setDownloading(true);
@@ -150,10 +153,15 @@ export function Detail({ post, related }: { post: Post; related: Post[] }) {
               </motion.div>
             </AnimatePresence>
           </div>
-          <div className="studio-bottom">
+          <div
+            className="studio-bottom"
+            role="status"
+            aria-live="polite"
+            aria-atomic="true"
+          >
             <span>
               {asset
-                ? `${asset.width} × ${asset.height} · JPG`
+                ? `${formatLabels[format]} · ${asset.width} × ${asset.height} · JPG`
                 : "Unavailable format"}
             </span>
             <span>
@@ -200,6 +208,7 @@ export function Detail({ post, related }: { post: Post; related: Post[] }) {
             <label className="share-fallback">
               Copy this link
               <input
+                id="share-link"
                 readOnly
                 value={shareLink}
                 onFocus={(e) => e.currentTarget.select()}

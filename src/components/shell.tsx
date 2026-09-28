@@ -1,5 +1,7 @@
 "use client";
 import Link from "next/link";
+import { useEffect, useRef } from "react";
+import { focusMain } from "@/lib/focus";
 import { usePathname, useRouter } from "next/navigation";
 import {
   ArrowUpRight,
@@ -21,9 +23,47 @@ export function Header() {
   const pathname = usePathname();
   const { profile, openAuth } = useAccount();
   const router = useRouter();
+  const previousPath = useRef(pathname);
+  const previousHeading = useRef<Element | null>(null);
+  useEffect(() => {
+    if (previousPath.current === pathname) {
+      previousHeading.current = document.querySelector("main h1");
+      return;
+    }
+    previousPath.current = pathname;
+    // Wait for streamed route content, without stealing focus on filter changes.
+    const focus = () => {
+      const heading = document.querySelector("main h1");
+      if (!heading || heading === previousHeading.current) return false;
+      previousHeading.current = heading;
+      if (document.activeElement?.id !== "wallpaper-search") focusMain();
+      return true;
+    };
+    const observer = new MutationObserver(() => {
+      if (focus()) observer.disconnect();
+    });
+    const frame = requestAnimationFrame(() => {
+      if (!focus())
+        observer.observe(document.body, { childList: true, subtree: true });
+    });
+    return () => {
+      cancelAnimationFrame(frame);
+      observer.disconnect();
+    };
+  }, [pathname]);
   return (
     <>
-      <a className="skip-link" href="#main">
+      <a
+        className="skip-link"
+        href="#main"
+        onClick={() => {
+          const main = document.querySelector<HTMLElement>("main");
+          if (main) {
+            main.tabIndex = -1;
+            main.focus();
+          }
+        }}
+      >
         Skip to content
       </a>
       <header className="header">
@@ -51,7 +91,11 @@ export function Header() {
             <button
               className="icon-button"
               aria-label="Search wallpapers"
-              onClick={() => router.push("/explore?search=")}
+              onClick={() => {
+                const search = document.getElementById("wallpaper-search");
+                if (pathname === "/explore" && search) search.focus();
+                else router.push("/explore?search=");
+              }}
             >
               <Search size={21} />
             </button>

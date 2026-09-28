@@ -30,7 +30,7 @@ export function Today({
   collection,
   earlier,
 }: {
-  collection: { date: string; posts: Post[] };
+  collection: { date: string | null; posts: Post[] };
   earlier: Post[];
 }) {
   const ref = useRef<HTMLDivElement>(null);
@@ -41,6 +41,7 @@ export function Today({
   });
   const y = useTransform(scrollYProgress, [0, 1], [0, 35]);
   const featured = collection.posts[0];
+  if (!featured || !collection.date) return <main id="main" className="page"><div className="empty-state"><h1>A little inspiration is on its way.</h1><p>No collection has been published yet. Please check back soon.</p></div></main>;
   const isToday = new Date().toISOString().slice(0, 10) === collection.date;
   return (
     <main id="main" className="page today-page">
