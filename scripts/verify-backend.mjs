@@ -43,7 +43,7 @@ try{
   await state({reactionFailure:false});
  });
  await check("Empty catalogue, upstream failure and narrow-screen accessibility",async()=>{
-  await state({empty:true});await page.goto(base);await page.getByRole("heading",{name:"A little inspiration is on its way."}).waitFor();
+  await state({empty:true});await page.goto(base);await page.getByRole("heading",{name:"Your first collection is on its way"}).waitFor();
   await state({empty:false,failure:true});await page.goto(`${base}/explore`);await page.getByRole("button",{name:"Retry collection",exact:true}).waitFor();
   await state({failure:false});await page.getByRole("button",{name:"Retry collection",exact:true}).click();await page.locator(".gallery-card").first().waitFor();
   await page.setViewportSize({width:390,height:844});await page.waitForFunction(()=>[...document.querySelectorAll(".gallery-card")].every(e=>Number(getComputedStyle(e).opacity)>.99));const audit=await new AxeBuilder({page}).analyze();assert.deepEqual(audit.violations.map(v=>({id:v.id,nodes:v.nodes.map(n=>({target:n.target,summary:n.failureSummary}))})),[]);

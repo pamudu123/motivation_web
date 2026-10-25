@@ -11,8 +11,11 @@ npm ci
 uv sync --project backend --frozen
 ```
 
-In a backend terminal: `cd backend` then `uv run uvicorn app.main:app --reload --port 8000`.
-In a frontend terminal: `npm run dev`, then open http://localhost:3000.
+Start both services with `npm run dev:all`, then open http://localhost:3000. Keep that terminal open; Ctrl+C stops both services. The launcher waits for backend startup before launching Next.js. Stop any separately running servers first to avoid port conflicts.
+
+Alternatively, in a backend terminal: `cd backend` then `uv run uvicorn app.main:app --reload --port 8000`. In a frontend terminal: `npm run dev`.
+
+`npm run dev` starts only the frontend. `ECONNREFUSED 127.0.0.1:8000` means the backend is stopped or restarting. Check http://127.0.0.1:8000/docs. A 503 response instead means the backend is running but an upstream service such as Supabase is unavailable.
 
 See [backend setup and operations](docs/backend-setup.md) for Supabase configuration, migrations, auth providers, publishing and deployment. An empty homepage is expected until reviewed content is published. API errors never silently fall back to demo content.
 

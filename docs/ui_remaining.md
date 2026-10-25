@@ -14,6 +14,8 @@ Priorities:
 - **P2:** Improve after the main release blockers are handled.
 - **Later:** Optional product ideas, not unfinished phase-one requirements.
 
+
+
 ## Already implemented
 
 - Today: featured design, latest five with the actual publication date, theme discovery and earlier collections.
@@ -89,6 +91,8 @@ An always-visible active-filter summary shows search text, each theme, visual st
 
 ## 2. Release-quality UI checks still remaining
 
+
+
 ### P1 — Real devices and browser coverage
 
 The existing automated suite covers headless Chrome, including phone/tablet-sized viewports. That is not a physical-device or Safari/Firefox sign-off.
@@ -133,13 +137,15 @@ Post metadata currently supplies a title and description, but not a dedicated Op
 
 The frontend brief explicitly requested simulated authentication and sample content. These are production integration tasks, not reasons to describe the demo as unimplemented.
 
-| Area | Remaining UI work when real services are available | Dependency |
-| --- | --- | --- |
-| Google/email sign-in | Redirect/callback, email-sent, expired-link, resend, denied-access and session-expired states; preserve the pending Like/Save across the redirect | Real authentication provider and session contract |
-| Profile and private collections | Session restoration, remote loading/retry, authorization failures and canonical reaction state; verify account switching cannot show the previous account's items | Authorized profile/reaction APIs |
-| Daily content and search | Remote loading/cancellation, stale-response protection, empty/publishing-day behavior and pagination; consider debouncing requests | Published-content API and editorial date rules |
-| Downloads | Test remote asset/CORS failures and correct filenames on supported devices | Storage/CDN or same-origin download endpoint |
-| Public account launch | Add genuine privacy/help/account-management destinations after their content and behavior are agreed; do not add dead footer links | Product decisions and approved copy |
+
+| Area                            | Remaining UI work when real services are available                                                                                                                | Dependency                                        |
+| ------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------- |
+| Google/email sign-in            | Redirect/callback, email-sent, expired-link, resend, denied-access and session-expired states; preserve the pending Like/Save across the redirect                 | Real authentication provider and session contract |
+| Profile and private collections | Session restoration, remote loading/retry, authorization failures and canonical reaction state; verify account switching cannot show the previous account's items | Authorized profile/reaction APIs                  |
+| Daily content and search        | Remote loading/cancellation, stale-response protection, empty/publishing-day behavior and pagination; consider debouncing requests                                | Published-content API and editorial date rules    |
+| Downloads                       | Test remote asset/CORS failures and correct filenames on supported devices                                                                                        | Storage/CDN or same-origin download endpoint      |
+| Public account launch           | Add genuine privacy/help/account-management destinations after their content and behavior are agreed; do not add dead footer links                                | Product decisions and approved copy               |
+
 
 Keep the demo labels until real integration exists. Theme preferences currently act as saved preferences and discovery links, not a personalized ranking engine.
 
@@ -163,9 +169,12 @@ Videos, payments, subscriptions, admin screens, image generation, comments, mess
 5. Measure performance and finish public share metadata.
 6. Integrate real services only when their contracts are ready; then test the production account journey.
 
+
+
 ## Review evidence
 
 - Compared the supplied frontend brief with `src/components/`, route files and service adapters; consulted [integration notes](frontend-integration.md), [verification notes](frontend-verification.md) and [product ideas](idea.md).
 - The September 28 development run at `test-results/run-2026-09-28T03-41-13.369Z/verification.json` records 16 passing browser workflows and no browser exceptions. That result was inspected, not rerun for this documentation-only review.
 - Prior verification records TypeScript, five service/asset tests and a production build passing. Those checks do not cover every edge case listed above.
 - Images and test-result evidence are now ignored by Git and may exist only in the current workspace; the documentation must not imply that those files will arrive in a fresh clone.
+

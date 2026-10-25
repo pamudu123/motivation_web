@@ -26,6 +26,25 @@ const moods = [
   { name: "Calm", hint: "Take a breath", symbol: "≈" },
   { name: "Growth", hint: "Keep becoming", symbol: "⌁" },
 ];
+function Welcome({ published = false }: { published?: boolean }) {
+  return <section className="welcome" aria-labelledby="welcome-title">
+    <div className="welcome-copy">
+      <h1 id="welcome-title">A little perspective.<br />Every time you look.</h1>
+      <p>Find words that meet you where you are. Thoughtfully designed wallpapers for your phone and desktop, free to download.</p>
+      <div className="welcome-actions">
+        <Link className="button primary" href={published ? "#daily" : "/explore"}>{published ? "Browse the collection" : "Explore wallpapers"}<ArrowRight size={18} /></Link>
+        <span><Smartphone size={17} /><Monitor size={19} /> Made for both screens</span>
+      </div>
+    </div>
+    <div className="welcome-note"><Sparkles size={28} /><p>A small reminder.<br />A fresh start.</p><span>Make your screen a space for you.</span></div>
+  </section>;
+}
+function MoodNavigation() {
+  return <section className="mood-section" aria-labelledby="mood-title">
+    <div className="section-heading"><div><h2 id="mood-title">What do you need today?</h2><p>Start with a feeling. Find your reminder.</p></div><Link href="/explore" className="inline-link">All themes <ArrowUpRight size={17} /></Link></div>
+    <div className="mood-rail">{moods.map(m => <Link key={m.name} className="mood" href={`/explore?themes=${m.name}`}><span className="mood-symbol" aria-hidden="true">{m.symbol}</span><span><strong>{m.name}</strong><small>{m.hint}</small></span><ArrowUpRight size={18} /></Link>)}</div>
+  </section>;
+}
 function PublishedToday({
   collection,
   earlier,
@@ -44,10 +63,11 @@ function PublishedToday({
   const isToday = new Date().toISOString().slice(0, 10) === collection.date;
   return (
     <main id="main" className="page today-page">
+      <Welcome published />
       <div className="edition">
         <span>
           <i className="live-dot" />
-          {isToday ? "YOUR DAILY DOSE" : "THE LATEST DROP"}
+          {isToday ? "Today?s collection" : "Latest collection"}
         </span>
         <time dateTime={collection.date}>{dateLabel(collection.date)}</time>
       </div>
@@ -71,9 +91,9 @@ function PublishedToday({
         </motion.div>
         <div className="featured-caption">
           <span className="featured-label">
-            <Sparkles size={14} /> FEATURED WALLPAPER
+            <Sparkles size={14} /> Featured wallpaper
           </span>
-          <h1 className="sr-only">{featured.quote}</h1>
+          <span className="sr-only">{featured.quote}</span>
           <Link className="button primary" href={`/wallpaper/${featured.slug}`}>
             Preview wallpaper <ArrowUpRight size={18} />
           </Link>
@@ -102,43 +122,18 @@ function PublishedToday({
           <div>
             <h2>
               {isToday ? "Today’s five." : "The latest five."}
-              <span className="orange"> Your next spark.</span>
+
             </h2>
             <p>Five original reminders. Find the one that feels like you.</p>
           </div>
           <span className="collection-count">
-            05 <span>WALLPAPERS</span>
+            {String(collection.posts.length).padStart(2, "0")} <span>wallpapers</span>
           </span>
         </div>
         <Gallery posts={collection.posts} daily />
       </section>
-      <section className="mood-section" data-sc-act="flow">
-        <div className="section-heading">
-          <h2>What do you need today?</h2>
-          <Link href="/explore" className="inline-link">
-            All themes <ArrowUpRight size={17} />
-          </Link>
-        </div>
-        <div className="mood-rail">
-          {moods.map((m) => (
-            <Link
-              key={m.name}
-              className="mood"
-              href={`/explore?themes=${m.name}`}
-            >
-              <span className="mood-symbol" aria-hidden="true">
-                {m.symbol}
-              </span>
-              <span>
-                <strong>{m.name}</strong>
-                <small>{m.hint}</small>
-              </span>
-              <ArrowUpRight size={18} />
-            </Link>
-          ))}
-        </div>
-      </section>
-      <section className="archive-section" data-sc-act="flow">
+      <MoodNavigation />
+      {earlier.length > 0 && <section className="archive-section" data-sc-act="flow">
         <div className="section-heading">
           <div>
             <h2>Good words don’t expire.</h2>
@@ -167,6 +162,7 @@ function PublishedToday({
           ))}
         </div>
       </section>
+      }
       <div className="closing-note">
         <Sparkles size={20} />
         <p>Make room for a little inspiration.</p>
@@ -179,6 +175,11 @@ function PublishedToday({
 }
 
 export function Today({collection,earlier}: {collection:{date:string|null;posts:Post[]};earlier:Post[]}) {
-  if(!collection.date || !collection.posts.length) return <main id="main" className="page"><div className="empty-state"><h1>A little inspiration is on its way.</h1><p>No collection has been published yet. Please check back soon.</p></div></main>;
+  if (!collection.date || !collection.posts.length) return <main id="main" className="page today-page">
+    <Welcome />
+    <div className="collection-pending"><span className="empty-symbol"><Sparkles size={26} /></span><div><h2>Your first collection is on its way</h2><p>New wallpapers will appear here once published. In the meantime, explore the themes you connect with.</p></div></div>
+    <MoodNavigation />
+    <div className="closing-note"><Check size={20} /><p>Free to download. Yours to keep.</p></div>
+  </main>;
   return <PublishedToday collection={{date:collection.date,posts:collection.posts}} earlier={earlier}/>;
 }
