@@ -101,7 +101,7 @@ export function Detail({ post, related }: { post: Post; related: Post[] }) {
         <section className="studio" aria-label="Wallpaper preview">
           <div className="studio-top">
             <span>
-              <span className="orange">✳</span> SCREEN STUDIO
+              <span className="today-dot" aria-hidden="true" /> Screen studio
             </span>
             <label className="frame-switch">
               <input
@@ -180,7 +180,6 @@ export function Detail({ post, related }: { post: Post; related: Post[] }) {
           </div>
           <h1>
             {post.title}
-            <span className="orange">.</span>
           </h1>
           <blockquote>“{post.quote}”</blockquote>
           {post.attribution && <p>{post.attribution}</p>}

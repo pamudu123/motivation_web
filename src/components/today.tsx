@@ -19,30 +19,45 @@ import {
 import { type Post } from "@/lib/models";
 import { dateLabel } from "@/lib/content";
 import { Artwork, Gallery } from "./gallery";
+// The five daily moods from the design system, each opening the closest catalogue theme.
 const moods = [
-  { name: "Focus", hint: "Find your clarity", symbol: "◎" },
-  { name: "Confidence", hint: "Back yourself", symbol: "↗" },
-  { name: "Discipline", hint: "Show up again", symbol: "✳" },
-  { name: "Calm", hint: "Take a breath", symbol: "≈" },
-  { name: "Growth", hint: "Keep becoming", symbol: "⌁" },
+  { name: "Start", theme: "New Beginnings", hint: "A reason to begin.", color: "var(--mood-start)" },
+  { name: "Focus", theme: "Focus", hint: "One clear step.", color: "var(--mood-focus)" },
+  { name: "Courage", theme: "Courage", hint: "Go before you're ready.", color: "var(--mood-courage)" },
+  { name: "Consistency", theme: "Discipline", hint: "Small efforts count.", color: "var(--mood-steady)" },
+  { name: "Reset", theme: "Calm", hint: "Rest is part of it.", color: "var(--mood-reset)" },
 ];
-function Welcome({ published = false }: { published?: boolean }) {
+function WelcomeArt() {
+  return <div className="welcome-art" aria-hidden="true">
+    <svg viewBox="0 0 420 420">
+      <rect className="a-spark" x="0" y="0" width="160" height="300" rx="24" />
+      <rect className="a-ink" x="184" y="0" width="236" height="236" rx="24" />
+      <text x="232" y="212" fontSize="240">5</text>
+      <rect className="a-start" x="184" y="260" width="236" height="72" rx="36" />
+      <circle className="a-focus" cx="80" cy="356" r="56" />
+      <rect className="a-steady" x="184" y="356" width="112" height="64" rx="24" />
+      <rect className="a-reset" x="308" y="356" width="112" height="64" rx="24" />
+    </svg>
+  </div>;
+}
+function Welcome({ label, actionHref, actionLabel }: { label: string; actionHref: string; actionLabel: string }) {
   return <section className="welcome" aria-labelledby="welcome-title">
     <div className="welcome-copy">
-      <h1 id="welcome-title">A little perspective.<br />Every time you look.</h1>
-      <p>Find words that meet you where you are. Thoughtfully designed wallpapers for your phone and desktop, free to download.</p>
+      <p className="label"><span className="today-dot" aria-hidden="true" />{label}</p>
+      <h1 id="welcome-title">Start where<br />you are.</h1>
+      <p>Words worth seeing every time you unlock your phone. New each morning, sized for every screen, free to keep.</p>
       <div className="welcome-actions">
-        <Link className="button primary" href={published ? "#daily" : "/explore"}>{published ? "Browse the collection" : "Explore wallpapers"}<ArrowRight size={18} /></Link>
-        <span><Smartphone size={17} /><Monitor size={19} /> Made for both screens</span>
+        <Link className="button primary" href={actionHref}>{actionLabel}<ArrowRight size={18} /></Link>
+        <Link className="button secondary" href="/explore">Browse the archive</Link>
       </div>
     </div>
-    <div className="welcome-note"><Sparkles size={28} /><p>A small reminder.<br />A fresh start.</p><span>Make your screen a space for you.</span></div>
+    <WelcomeArt />
   </section>;
 }
 function MoodNavigation() {
   return <section className="mood-section" aria-labelledby="mood-title">
-    <div className="section-heading"><div><h2 id="mood-title">What do you need today?</h2><p>Start with a feeling. Find your reminder.</p></div><Link href="/explore" className="inline-link">All themes <ArrowUpRight size={17} /></Link></div>
-    <div className="mood-rail">{moods.map(m => <Link key={m.name} className="mood" href={`/explore?themes=${m.name}`}><span className="mood-symbol" aria-hidden="true">{m.symbol}</span><span><strong>{m.name}</strong><small>{m.hint}</small></span><ArrowUpRight size={18} /></Link>)}</div>
+    <div className="section-heading"><div><h2 id="mood-title">What do you need today?</h2><p>Start with a feeling.</p></div><Link href="/explore" className="inline-link">All themes <ArrowRight size={17} /></Link></div>
+    <div className="mood-rail">{moods.map(m => <Link key={m.name} className="mood" href={`/explore?themes=${encodeURIComponent(m.theme)}`} style={{ "--tile-color": m.color } as React.CSSProperties}><span className="mood-swatch" aria-hidden="true" /><strong>{m.name}</strong><small>{m.hint}</small><ArrowRight size={20} aria-hidden="true" /></Link>)}</div>
   </section>;
 }
 function PublishedToday({
@@ -63,11 +78,15 @@ function PublishedToday({
   const isToday = new Date().toISOString().slice(0, 10) === collection.date;
   return (
     <main id="main" className="page today-page">
-      <Welcome published />
+      <Welcome
+        label="Daily motivation for your screen"
+        actionHref="#daily"
+        actionLabel={isToday ? "See today’s five" : "See the latest five"}
+      />
       <div className="edition">
         <span>
           <i className="live-dot" />
-          {isToday ? "Today?s collection" : "Latest collection"}
+          {isToday ? "Today’s collection" : "Latest collection"}
         </span>
         <time dateTime={collection.date}>{dateLabel(collection.date)}</time>
       </div>
@@ -91,7 +110,7 @@ function PublishedToday({
         </motion.div>
         <div className="featured-caption">
           <span className="featured-label">
-            <Sparkles size={14} /> Featured wallpaper
+            Featured wallpaper
           </span>
           <span className="sr-only">{featured.quote}</span>
           <Link className="button primary" href={`/wallpaper/${featured.slug}`}>
@@ -104,26 +123,23 @@ function PublishedToday({
             <Monitor size={27} />
           </span>
           <span>
-            Your inspiration.
+            Phone, desktop
             <br />
-            <strong>Every screen.</strong>
+            <strong>and chat sizes</strong>
           </span>
         </div>
       </section>
       <div className="under-hero">
-        <p>A fresh perspective, wherever life takes you.</p>
+        <p>Open it to try it on your screen.</p>
         <a href="#daily" className="inline-link">
-          {isToday ? "Explore today’s five" : "Explore the latest five"}{" "}
+          Jump to all five{" "}
           <ArrowDown size={15} />
         </a>
       </div>
       <section id="daily" className="daily-section" data-sc-act="flow">
         <div className="section-heading">
           <div>
-            <h2>
-              {isToday ? "Today’s five." : "The latest five."}
-
-            </h2>
+            <h2>{isToday ? "Today’s five" : "The latest five"}</h2>
             <p>Five original reminders. Find the one that feels like you.</p>
           </div>
           <span className="collection-count">
@@ -152,8 +168,7 @@ function PublishedToday({
             >
               <Artwork asset={p.thumbnail} />
               <div>
-                <span>{dateLabel(p.publishedAt)}</span>
-                <strong>Another day. Another possibility.</strong>
+                <strong>{dateLabel(p.publishedAt)}</strong>
                 <small>
                   5 wallpapers <ArrowUpRight size={16} />
                 </small>
@@ -164,10 +179,9 @@ function PublishedToday({
       </section>
       }
       <div className="closing-note">
-        <Sparkles size={20} />
-        <p>Make room for a little inspiration.</p>
+        <p>Five new ones<br />every morning.</p>
         <span>
-          <Check size={14} /> Free to download. Yours to keep.
+          <Check size={16} /> Free to download. Yours to keep.
         </span>
       </div>
     </main>
@@ -176,10 +190,10 @@ function PublishedToday({
 
 export function Today({collection,earlier}: {collection:{date:string|null;posts:Post[]};earlier:Post[]}) {
   if (!collection.date || !collection.posts.length) return <main id="main" className="page today-page">
-    <Welcome />
+    <Welcome label="Daily Spark" actionHref="/explore" actionLabel="Explore wallpapers" />
     <div className="collection-pending"><span className="empty-symbol"><Sparkles size={26} /></span><div><h2>Your first collection is on its way</h2><p>New wallpapers will appear here once published. In the meantime, explore the themes you connect with.</p></div></div>
     <MoodNavigation />
-    <div className="closing-note"><Check size={20} /><p>Free to download. Yours to keep.</p></div>
+    <div className="closing-note"><p>Free.<br />Always.</p><span><Check size={16} /> No account needed to download.</span></div>
   </main>;
   return <PublishedToday collection={{date:collection.date,posts:collection.posts}} earlier={earlier}/>;
 }

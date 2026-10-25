@@ -73,7 +73,6 @@ export function Header() {
               <Zap size={20} fill="currentColor" />
             </span>
             {site.name}
-            <span className="brand-dot">.</span>
           </Link>
           <nav className="desktop-nav" aria-label="Main navigation">
             {destinations.map(({ href, label }) => (
@@ -141,7 +140,6 @@ export function Footer() {
       <Link className="wordmark" href="/">
         <Zap size={19} fill="currentColor" />
         {site.name}
-        <span className="brand-dot">.</span>
       </Link>
       <p>{site.tagline}</p>
       <span className="footer-note">Made for your everyday. Always free.</span>
