@@ -17,7 +17,7 @@ Alternatively, in a backend terminal: `cd backend` then `uv run uvicorn app.main
 
 `npm run dev` starts only the frontend. `ECONNREFUSED 127.0.0.1:8000` means the backend is stopped or restarting. Check http://127.0.0.1:8000/docs. A 503 response instead means the backend is running but an upstream service such as Supabase is unavailable.
 
-See [backend setup and operations](docs/backend-setup.md) for Supabase configuration, migrations, auth providers, publishing and deployment. An empty homepage is expected until reviewed content is published. API errors never silently fall back to demo content.
+See [backend setup and operations](docs/backend-setup.md) for Supabase configuration, migrations, auth providers, publishing and deployment. To publish for free on Vercel and Render, follow [free deployment](docs/deploy-free.md). An empty homepage is expected until reviewed content is published. API errors never silently fall back to demo content.
 
 ## Features
 

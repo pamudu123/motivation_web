@@ -1,0 +1,26 @@
+# Render Blueprint for the FastAPI backend (free plan). See docs/deploy-free.md.
+services:
+  - type: web
+    name: daily-spark-api
+    runtime: docker
+    plan: free
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    healthCheckPath: /api/v1/health/ready
+    buildFilter:
+      paths:
+        - backend/**
+    envVars:
+      # The Dockerfile listens on 8000; tell Render to route there.
+      - key: PORT
+        value: "8000"
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_PUBLISHABLE_KEY
+        sync: false
+      # Server-only; required for account deletion.
+      - key: SUPABASE_SECRET_KEY
+        sync: false
+      # Your Vercel URL, e.g. https://daily-spark.vercel.app
+      - key: APP_ORIGIN
+        sync: false
