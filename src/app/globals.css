@@ -1496,6 +1496,36 @@ input:not([type="checkbox"]) {
   padding: 38px;
   box-shadow: 0 30px 120px #0008;
 }
+.auth-page {
+  display: grid;
+  justify-items: center;
+  gap: 22px;
+  padding-top: 56px;
+  padding-bottom: 56px;
+}
+.auth-card {
+  width: min(460px, 100%);
+  border: 1px solid var(--line-strong);
+  border-radius: 15px;
+  background: var(--paper-raised);
+  padding: 38px;
+}
+.auth-panel > .google {
+  margin-top: 24px;
+}
+.auth-switch {
+  font-size: 12px;
+  text-align: center;
+  color: var(--muted);
+  margin-top: 10px;
+}
+.auth-switch .inline-link {
+  display: inline;
+}
+.email-success strong {
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
 .auth-dialog::backdrop {
   background: #060906bf;
   backdrop-filter: blur(5px);
@@ -1517,13 +1547,14 @@ input:not([type="checkbox"]) {
   border-radius: 16px;
   margin-bottom: 20px;
 }
-.auth-dialog h2 {
+.auth-panel h1,
+.auth-panel h2 {
   font-size: 29px;
   line-height: 1.12;
   font-weight: 650;
   letter-spacing: -1px;
 }
-.auth-dialog > p {
+.auth-panel > p {
   color: var(--muted);
   font-size: 13px;
   margin-top: 13px;
@@ -1587,14 +1618,14 @@ input:not([type="checkbox"]) {
   position: relative;
   padding: 0 12px;
 }
-.auth-dialog label {
+.auth-panel label {
   font-size: 11px;
 }
-.auth-dialog input:not([type="checkbox"]) {
+.auth-panel input:not([type="checkbox"]) {
   width: 100%;
   margin: 8px 0 13px;
 }
-.auth-dialog .fineprint {
+.auth-panel .fineprint {
   font-size: 10px;
   text-align: center;
   margin-top: 15px;
@@ -2271,10 +2302,12 @@ input:not([type="checkbox"]) {
   .empty-state h2 {
     font-size: 25px;
   }
-  .auth-dialog {
+  .auth-dialog,
+  .auth-card {
     padding: 30px 24px;
   }
-  .auth-dialog h2 {
+  .auth-panel h1,
+  .auth-panel h2 {
     font-size: 28px;
   }
   .toast {
@@ -3157,11 +3190,11 @@ select {
 .demo-note strong {
   color: var(--ink);
 }
-.auth-dialog label,
-.auth-dialog .fineprint {
+.auth-panel label,
+.auth-panel .fineprint {
   font-size: 13px;
 }
-.auth-dialog > p {
+.auth-panel > p {
   font-size: 15px;
 }
 .mobile-nav a {

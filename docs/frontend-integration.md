@@ -21,7 +21,11 @@ Explore preserves URL filters and requested visible count. It retrieves bounded 
 
 ## Accounts and sessions
 
-The Supabase SDK owns browser session persistence/refresh. Google uses a PKCE callback; email links use token-hash confirmation. Protected FastAPI calls send the access token as bearer authorization, retrying once after a coordinated refresh on 401. Private user data is loaded in the browser; public server-rendered content does not depend on the session.
+The Supabase SDK owns browser session persistence/refresh. Google uses a PKCE callback; email links use token-hash confirmation. Protected FastAPI calls send the access token as bearer authorization, retrying once after a coordinated refresh on 401. If that refresh fails, or the retry is still 401, the request fails as a plain 401: the app signs out locally and shows the signed-out state. Any other account-load failure keeps the session and shows retry. Private user data is loaded in the browser; public server-rendered content does not depend on the session.
+
+`/signup` and `/signin` are full-page entry points; Save as a guest opens the same form in a dialog ("Sign in to save this wallpaper"). All three use `AuthForm` (`src/components/auth-form.tsx`) and one shared flow: Google, or a passwordless email link with account creation allowed, so continuing creates the account if the person is new. The form covers ready, sending, Google redirect, email requested (address shown, 60-second resend countdown, change address) and plain-language error states. Raw provider messages are never shown. A signed-in visitor to an auth page is sent to its destination once the profile loads.
+
+Auth pages accept `?next=`. `safeReturnPath` rejects external, protocol-relative, backslash, `/auth/*`, `/signin` and `/signup` destinations and falls back to `/saved`. Destination precedence: valid pending-action return path, then safe `next` (or the dialog's current page), then `/saved`. The callback reports cancelled, missing, expired or used links with a "Try again" link back to `/signin`; a failed exchange can be retried without reloading the tab.
 
 `Profile` contains id, displayName, themes, likedCount and savedCount. It no longer contains every liked/saved ID. Profile updates accept displayName and themes only. Visible-card flags come from a bounded `/me/reactions` request and are stored centrally by post ID.
 
@@ -29,7 +33,7 @@ Like/save PUT requests carry `{active:boolean}`. Responses return canonical like
 
 Saved/Liked screens query `/me/saved` and `/me/liked` with pagination. Sign-out/account switching clears private state. Account-service failures produce retry UI rather than silently displaying another account or demo state.
 
-Pending guest actions contain an action ID, desired state, post ID, local return path and 30-minute expiry. They persist through redirects, are replayed under a browser lock and removed after success. Cross-device email login cannot retrieve another device's pending action.
+Pending guest actions contain an action ID, desired state, post ID, local return path and 30-minute expiry. They persist through redirects, are replayed under a browser lock and removed after success. Closing the dialog (close button, Escape, backdrop or browser Back) before requesting sign-in abandons the action; once a Google redirect or email link has been requested it is kept. A replay that returns 404 (artwork withdrawn) is dropped with an "unavailable" message; other failures keep the action for a later retry. Sign-out clears it. Cross-device email login cannot retrieve another device's pending action, and the app does not claim it was saved.
 
 Account deletion requires explicit confirmation and recent authentication. The response reports pending or complete, with a job ID. The user is signed out after acceptance; a server worker retries incomplete deletion jobs.
 
@@ -37,7 +41,7 @@ Account deletion requires explicit confirmation and recent authentication. The r
 
 The existing preview overlays remain HTML only. Downloads fetch the chosen hosted JPEG and verify status/MIME before saving a blob with a format-specific filename. Storage must permit readable cross-origin requests. Failures remain visible without a success notification.
 
-Native sharing, clipboard and manual URL fallback remain available. Sign-in uses a native dialog with Escape, focus containment and focus restoration; remote loading/failure states preserve the existing layout and reduced-motion behavior.
+Native sharing, clipboard and manual URL fallback remain available. The sign-in dialog is a native dialog with Escape, focus containment and focus restoration; remote loading/failure states preserve the existing layout and reduced-motion behavior.
 
 ## Verification boundaries
 

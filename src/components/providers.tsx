@@ -1,11 +1,13 @@
 "use client";
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import { MotionConfig } from "motion/react";
-import { Check, Mail, Sparkles, X } from "lucide-react";
+import { Check, X } from "lucide-react";
 import { accountService } from "@/lib/account";
-import { authClient, readPending, PENDING_KEY } from "@/lib/auth";
+import { ApiError } from "@/lib/api";
+import { authClient, readPending, clearPending, PENDING_KEY } from "@/lib/auth";
 import { focusMain } from "@/lib/focus";
-import { themes, type Profile, type Theme, type Reaction, type Post } from "@/lib/models";
+import { type Profile, type Theme, type Reaction, type Post } from "@/lib/models";
+import { AuthForm, type AuthVariant } from "./auth-form";
 type Kind = "liked" | "saved";
 type AccountContext = {
   profile: Profile | null; ready: boolean; busy: string | null; error: string;
@@ -22,7 +24,7 @@ export function Providers({ children }: { children: ReactNode }) {
   const [ready, setReady] = useState(false);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState<string | null>(null);
-  const [auth, setAuth] = useState(false);
+  const [auth, setAuth] = useState<AuthVariant | null>(null);
   const [toast, setToast] = useState({text: "", id: 0});
   const [reactions, setReactions] = useState<Record<string, Reaction>>({});
   const [revision, setRevision] = useState(0);
@@ -34,6 +36,7 @@ export function Providers({ children }: { children: ReactNode }) {
   const queue = useRef(new Set<string>());
   const versions = useRef(new Map<string, number>());
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const clearRef = useRef(() => {});
   const notify = useCallback((text: string) => setToast(t => ({text, id: t.id+1})), []);
   const register = useCallback((post: Post) => {
     knownPosts.current.set(post.id, post);
@@ -59,6 +62,7 @@ export function Providers({ children }: { children: ReactNode }) {
     const clear = () => {
       epoch.current++; currentUser.current = null; setError(""); versions.current.clear(); setProfile(null); setReactions({}); lock.current=false; setBusy(null);
     };
+    clearRef.current = clear;
     const sync = async (uid: string | null) => {
       if (uid !== currentUser.current) clear();
       currentUser.current = uid;
@@ -71,26 +75,38 @@ export function Providers({ children }: { children: ReactNode }) {
         const pending = readPending();
         if (pending && p && !window.location.pathname.startsWith("/auth/")) {
           const apply = async () => {
-            if (readPending()?.id !== pending.id) return;
+            if (readPending()?.id !== pending.id) return false;
             await accountService.react(pending.kind, pending.postId, true);
-            localStorage.removeItem(PENDING_KEY);
+            clearPending();
+            return true;
           };
           try {
-            if (navigator.locks) await navigator.locks.request("spark-pending", apply); else await apply();
+            const applied = navigator.locks ? await navigator.locks.request("spark-pending", apply) : await apply();
             p = await accountService.read();
-          } catch { notify("Signed in, but your pending action could not be saved. Please try again."); }
+            if (applied) notify(pending.kind === "saved" ? "Wallpaper saved." : "Like added.");
+          } catch (e) {
+            if (e instanceof ApiError && e.status === 404) { clearPending(); notify("This wallpaper is no longer available."); }
+            else notify(pending.kind === "saved" ? "Signed in, but couldn’t save this wallpaper. Try again." : "Signed in, but your like couldn’t be saved. Try again.");
+          }
         }
         if (!live || generation !== epoch.current) return;
-        setProfile(p); setAuth(false); setRevision(v=>v+1);
+        setProfile(p); setAuth(null); setRevision(v=>v+1);
         for (const post of knownPosts.current.values()) register(post);
       } catch (e) {
-        if (live && generation === epoch.current) setError(e instanceof Error ? e.message : "Your account could not load.");
+        if (!live || generation !== epoch.current) return;
+        if (e instanceof ApiError && e.status === 401) {
+          // The session is exhausted: return to the signed-out state instead of an outage.
+          clear(); clearPending(); setReady(true);
+          await authClient().auth.signOut({ scope: "local" }).catch(() => {});
+          return;
+        }
+        setError("Your account could not load. Check your connection and try again.");
       } finally { if (live && generation === epoch.current) setReady(true); }
     };
     let unsubscribe = () => {};
     try {
       const client = authClient();
-      void client.auth.getSession().then(({data}) => sync(data.session?.user.id ?? null)).catch(e => {setError(e.message);setReady(true);});
+      void client.auth.getSession().then(({data}) => sync(data.session?.user.id ?? null)).catch(() => {setError("Sign-in is unavailable right now. Please try again later.");setReady(true);});
       const { data } = client.auth.onAuthStateChange((event, session) => {
         if (event === "INITIAL_SESSION" || event === "TOKEN_REFRESHED") return;
         // Defer SDK calls outside the auth callback lock.
@@ -104,8 +120,8 @@ export function Providers({ children }: { children: ReactNode }) {
     if (!ready || lock.current) return;
     if (!profile) {
       try { localStorage.setItem(PENDING_KEY, JSON.stringify({id: crypto.randomUUID(), kind, postId:id, active:true, returnPath:window.location.pathname+window.location.search, expires:Date.now()+1800000})); }
-      catch { notify("Allow browser storage to keep this action during sign-in."); }
-      setAuth(true); return;
+      catch { notify("Your browser blocked storage, so tap Save again after signing in."); }
+      setAuth(kind === "saved" ? "save" : "signin"); return;
     }
     const before = reactions[id];
     if (!before) { const p=knownPosts.current.get(id); if(p) register(p); notify("Please wait for your reactions to load."); return; }
@@ -119,24 +135,27 @@ export function Providers({ children }: { children: ReactNode }) {
       if(generation!==epoch.current) return;
       setReactions(r=>({...r,[id]:result}));
       setProfile(p=>p?{...p,likedCount:result.likedCount,savedCount:result.savedCount}:null);
-      setRevision(v=>v+1); notify(active ? (kind==="liked"?"Like added.":"Wallpaper saved.") : "Removed from your collection.");
-    } catch { if(generation===epoch.current) {setReactions(r=>({...r,[id]:before}));notify("That change could not be saved. Please try again.");} }
+      setRevision(v=>v+1);
+      notify(kind==="saved" ? (active ? "Wallpaper saved." : "Removed from saved.") : (active ? "Like added." : "Like removed."));
+    } catch { if(generation===epoch.current) {setReactions(r=>({...r,[id]:before}));notify(kind==="saved" ? "Couldn’t save this wallpaper. Try again." : "That change could not be saved. Please try again.");} }
     finally {if(generation===epoch.current){lock.current=false;setBusy(null);}}
   }
   return <MotionConfig reducedMotion="user"><Context.Provider value={{ profile,ready,busy,error,reactions,revision,register,
-    retry:()=>setRetryId(v=>v+1), openAuth:()=>setAuth(true), react, notify,
-    signOut:async()=>{try{await accountService.signOut();epoch.current++;currentUser.current=null;localStorage.removeItem(PENDING_KEY);setProfile(null);setReactions({});notify("You are signed out.");focusMain();}catch{notify("Sign out failed. Please try again.");}},
+    retry:()=>setRetryId(v=>v+1), openAuth:()=>setAuth("signin"), react, notify,
+    signOut:async()=>{try{await accountService.signOut();clearRef.current();clearPending();notify("You are signed out.");focusMain();}catch{notify("Sign out failed. Please try again.");}},
     update:async(displayName,selected)=>{const generation=epoch.current;try{const p=await accountService.update({displayName,themes:selected});if(generation!==epoch.current)return false;setProfile(p);notify("Profile updated.");return true;}catch{notify("Your profile could not be saved.");return false;}}
   }}>{children}
-  {auth && <AuthDialog onClose={()=>setAuth(false)} notification={toast}/>}
+  {auth && <AuthDialog variant={auth} onClose={()=>setAuth(null)} notification={toast}/>}
   <div className="toast" role="status" aria-live="polite" aria-atomic="true">{!auth&&toast.text&&<><Check size={18} aria-hidden="true"/><span key={toast.id}>{toast.text}</span><button aria-label="Dismiss notification" onClick={()=>{setToast(t=>({...t,text:""}));focusMain();}}><X size={16}/></button></>}</div>
   </Context.Provider></MotionConfig>;
 }
 
 function AuthDialog({
+  variant,
   onClose,
   notification,
 }: {
+  variant: AuthVariant;
   onClose: () => void;
   notification: { text: string; id: number };
 }) {
@@ -146,15 +165,15 @@ function AuthDialog({
       ? null
       : (document.activeElement as HTMLElement | null),
   );
-  const [stage, setStage] = useState<"signin" | "email" | "themes">("signin");
-  const [pending, setPending] = useState(false);
-  const [error, setError] = useState("");
-  const [email, setEmail] = useState("");
-  const [selected, setSelected] = useState<Theme[]>([]);
-  const account = useAccount();
+  const [returnPath] = useState(() =>
+    typeof window === "undefined" ? "/" : window.location.pathname + window.location.search,
+  );
+  // Once a redirect or email request starts, the pending save must survive the dialog.
+  const requested = useRef(false);
   const closeRef = useRef(onClose);
   closeRef.current = onClose;
   function dismiss() {
+    if (!requested.current) clearPending();
     if (window.history.state?.sparkDialog) window.history.back();
     else closeRef.current();
   }
@@ -180,12 +199,6 @@ function AuthDialog({
     }
   }
   useEffect(() => {
-    ref.current?.querySelector<HTMLHeadingElement>("#auth-title")?.focus();
-  }, [stage]);
-  useEffect(() => {
-    if (error) ref.current?.querySelector<HTMLElement>("[role=alert]")?.focus();
-  }, [error]);
-  useEffect(() => {
     ref.current?.showModal();
     ref.current?.querySelector<HTMLHeadingElement>("#auth-title")?.focus();
     const overflow = document.body.style.overflow;
@@ -196,7 +209,11 @@ function AuthDialog({
         "",
         window.location.href,
       );
-    const pop = () => closeRef.current();
+    const pop = () => {
+      // Browser Back is also an explicit dismissal.
+      if (!requested.current) clearPending();
+      closeRef.current();
+    };
     window.addEventListener("popstate", pop);
     return () => {
       document.body.style.overflow = overflow;
@@ -208,15 +225,6 @@ function AuthDialog({
       });
     };
   }, []);
-  async function enter(method: "google" | "email") {
-    if (pending) return;
-    setPending(true); setError("");
-    try {
-      await accountService.signIn(method, email);
-      if (method === "email") setStage("email");
-    } catch (e) { setError(e instanceof Error ? e.message : "Sign in could not finish. Please try again."); }
-    finally { setPending(false); }
-  }
   return (
     <dialog
       ref={ref}
@@ -238,152 +246,12 @@ function AuthDialog({
       >
         <X />
       </button>
-      <span className="auth-symbol">
-        <Sparkles size={30} />
-      </span>
-      {stage === "themes" ? (
-        <>
-          <h2 id="auth-title" tabIndex={-1}>
-            Make it your spark.
-          </h2>
-          <p>
-            Pick a few themes you connect with. You can change these anytime.
-          </p>
-          <div className="chips">
-            {themes.map((t) => (
-              <button
-                key={t}
-                className={`chip ${selected.includes(t) ? "selected" : ""}`}
-                aria-pressed={selected.includes(t)}
-                onClick={() =>
-                  setSelected((s) =>
-                    s.includes(t) ? s.filter((v) => v !== t) : [...s, t],
-                  )
-                }
-              >
-                {t}
-              </button>
-            ))}
-          </div>
-          <button
-            className="button primary full"
-            disabled={pending}
-            onClick={async () => {
-              setPending(true);
-              setError("");
-              if (
-                await account.update(
-                  account.profile?.displayName || "Spark Explorer",
-                  selected,
-                )
-              )
-                dismiss();
-              else
-                setError(
-                  "Your preferences could not be saved. Please try again, or skip this step.",
-                );
-              setPending(false);
-            }}
-          >
-            Save preferences
-          </button>
-          <button className="button text-button full" onClick={dismiss}>
-            Skip for now
-          </button>
-        </>
-      ) : (
-        <>
-          <h2 id="auth-title" tabIndex={-1}>
-            Keep what moves you.
-          </h2>
-          <p>
-            Like the moments that resonate. Save a little inspiration for later.
-          </p>
-          {stage === "email" ? (
-            <div className="email-success">
-              <Check />
-              <h3>Check your email.</h3>
-              <p>
-                Open the sign-in link we sent to your email address. It can be used once.
-              </p>
-              <button
-                className="button primary full"
-                disabled={pending}
-                onClick={() => enter("email")}
-              >
-                {pending ? "Signing in…" : "Resend magic link"}
-              </button>
-              <button
-                className="button text-button full"
-                onClick={() => setStage("signin")}
-              >
-                Back to sign in
-              </button>
-            </div>
-          ) : (
-            <>
-              <button
-                className="button google full"
-                disabled={pending}
-                onClick={() => enter("google")}
-              >
-                <span className="google-mark" aria-hidden="true">
-                  G
-                </span>
-                {pending ? "Signing in…" : "Continue with Google"}
-              </button>
-              <div className="or">
-                <span>or use email</span>
-              </div>
-              <form
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  if (!pending) void enter("email");
-                }}
-              >
-                <label htmlFor="email">Email address</label>
-                <input
-                  id="email"
-                  type="email"
-                  placeholder="you@example.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                  autoComplete="email"
-                />
-                <button
-                  className="button primary full"
-                  type="submit"
-                  disabled={pending}
-                >
-                  <Mail size={18} />
-                  Send magic link
-                </button>
-              </form>
-              <p className="fineprint">
-                No passwords. We use your email to send a secure sign-in link.
-              </p>
-            </>
-          )}
-        </>
-      )}
-      {error && (
-        <p className="error-message" role="alert" tabIndex={-1}>
-          {error}
-        </p>
-      )}
-      <p
-        className="dialog-status"
-        role="status"
-        aria-live="polite"
-        aria-atomic="true"
-      >
-        <span key={notification.id}>
-          {pending
-            ? "Please wait. Completing your request."
-            : notification.text}
-        </span>
-      </p>
+      <AuthForm
+        variant={variant}
+        returnPath={returnPath}
+        notice={notification}
+        onRequested={() => { requested.current = true; }}
+      />
     </dialog>
   );
 }

@@ -4,7 +4,7 @@ import { readFile } from "node:fs/promises";
 import sharp from "sharp";
 const seeds = JSON.parse(await readFile(new URL("../src/data/designs.json", import.meta.url), "utf8"));
 const roles = {thumbnail:[600,800,"thumb"],hero:[1800,680,"hero"],mobileHero:[1080,1200,"mobile-hero"],mobile:[1080,1920,"mobile"],desktop:[2560,1440,"desktop"],whatsapp:[1080,1920,"whatsapp"],status:[1080,1920,"status"]};
-const state = { empty:false, failure:false, reactionFailure:false, likes:new Set(), saves:new Set(), name:"Test Reader" };
+const state = { empty:false, failure:false, reactionFailure:false, meUnauthorized:false, likes:new Set(), saves:new Set(), name:"Test Reader" };
 const posts = Array.from({length:120},(_,i)=>{
  const seed=seeds[i%seeds.length];
  const assets=Object.fromEntries(Object.entries(roles).map(([role,[width,height,suffix]])=>[role,{src:`http://127.0.0.1:8101/images/${seed.slug}-${suffix}.jpg`,width,height,type:"image/jpeg",alt:seed.title}]));
@@ -27,7 +27,7 @@ const server=createServer(async(req,res)=>{
  }
  if(state.failure)return send({error:{message:"Fixture upstream failure",code:"service_unavailable"}},503);
  const path=url.pathname.replace("/api/v1","");
- if(path.startsWith("/me")&&!req.headers.authorization)return send({error:{message:"Please sign in.",code:"unauthenticated"}},401);
+ if(path.startsWith("/me")&&(state.meUnauthorized||!req.headers.authorization))return send({error:{message:"Please sign in.",code:"unauthenticated"}},401);
  if(path==="/me"&&req.method==="PATCH"){state.name=input.displayName;return send(profile());}
  if(path==="/me")return send(profile());
  if(path==="/me/reactions")return send((url.searchParams.get("ids")||"").split(",").map(postId=>({postId,liked:state.likes.has(postId),saved:state.saves.has(postId),likeCount:Number(state.likes.has(postId))})));

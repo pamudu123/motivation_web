@@ -28,7 +28,11 @@ Public APIs see published posts and collections at or before today's UTC date. I
 
 - Enable Google in Supabase Auth and supply Google client credentials. Google's authorized callback is the Supabase Auth callback displayed in the dashboard. Allow the app's `/auth/callback` URL in Supabase redirect settings.
 - Set the Auth Site URL to the deployed app origin and allow explicit local/staging/production callback URLs. Do not use a production wildcard.
-- Configure custom SMTP and a verified sender. Set the magic-link template to link to `{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=email`.
+- Configure custom SMTP with a verified sending domain and sender, including the provider's DNS authentication records.
+- Set **both** the "Confirm signup" template (first-time email users) and the "Magic link" template (returning users) to link to `{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=email`. `supabase/templates/` holds the local versions configured in `supabase/config.toml`. Because `.SiteURL` always targets the configured origin, use a separate staging project (or document the shared-project behaviour) so staging links never open production.
+- Allow-list explicit `/auth/callback` and `/auth/confirm` URLs for each environment.
+- Publish the Google consent screen (or confirm users outside a test-user list can sign in) and request only identity scopes.
+- Review Auth rate limits for email sends against the app's 60-second resend countdown, and decide on CAPTCHA before public launch.
 - Set `APP_ORIGIN` to the production HTTPS origin for canonical/share metadata.
 - Verify Google redirect, email delivery, expired links, resend behavior and refresh with real accounts before public launch. These provider checks have not yet been performed.
 
@@ -97,7 +101,7 @@ Allow several GiB for the images and database before starting. The script refuse
 
 For browser regressions, run the fixture API in one terminal (`node scripts/fixture-api.mjs`) and a separate Next dev server on port 3100 with `BACKEND_INTERNAL_URL=http://127.0.0.1:8101` and `NEXT_DIST_DIR=.next-test`. Then run `npm run test:e2e`. On PowerShell, set these with `$env:NAME='value'` before `npm run dev -- --port 3100`.
 
-The fixture suite verifies public rendering, downloads, >100-item browsing, guest dialog accessibility, a fixture authenticated session, pending save, reload persistence, write rollback, empty/error states and mobile axe checks. It is explicitly not provider verification. Legacy `scripts/verify.mjs` and `scripts/verify-accessibility.mjs` preserve earlier demo-era checks; their simulated-login cases are not compatible with the production authentication flow. Manual screen-reader and physical-device checks remain required.
+The fixture suite verifies public rendering, downloads, >100-item browsing, the `/signin` and `/signup` pages and save dialog (axe, keyboard focus, focus containment, errors, email-sent state, reflow, cancellation, safe `next`; Supabase Auth calls intercepted), the exhausted-session fallback, a fixture authenticated session, pending save, reload persistence, write rollback, empty/error states and mobile axe checks. It is explicitly not provider verification. Legacy `scripts/verify.mjs` and `scripts/verify-accessibility.mjs` preserve earlier demo-era checks; their simulated-login cases are not compatible with the production authentication flow. Manual screen-reader and physical-device checks remain required.
 
 ## Containers and release
 

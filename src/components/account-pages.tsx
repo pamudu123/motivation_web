@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState } from "react";
 import { focusMain } from "@/lib/focus";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import {
   ArrowUpRight,
   Bookmark,
@@ -16,26 +17,25 @@ import { accountService } from "@/lib/account";
 import { site } from "@/lib/config";
 import { themes, type Theme, type Post } from "@/lib/models";
 export function Guest({ destination }: { destination: string }) {
-  const { openAuth } = useAccount();
+  const pathname = usePathname();
+  const next = encodeURIComponent(pathname);
   return (
     <main id="main" className="page">
       <div className="guest-state">
         <span className="auth-symbol">
           <Bookmark size={30} />
         </span>
-        <span className="eyebrow">YOUR OWN LITTLE CORNER</span>
-        <h1>
-          Keep a little
-          <br />
-          <span className="orange">inspiration close.</span>
-        </h1>
+        <h1>Sign in to see {destination}.</h1>
         <p>
-          Sign in to see {destination}, save the words that move you, and make
-          this space your own.
+          Save your favourite wallpapers and find them again on any device.
+          It’s free, and no password is needed.
         </p>
-        <button className="button primary" onClick={openAuth}>
+        <Link className="button primary" href={`/signin?next=${next}`}>
           Sign in <ArrowUpRight size={18} />
-        </button>
+        </Link>
+        <Link className="inline-link" href={`/signup?next=${next}`}>
+          New here? Create a free account
+        </Link>
         <Link className="inline-link" href="/explore">
           Just browsing? Explore wallpapers
         </Link>
@@ -48,20 +48,16 @@ export function CollectionPage({ kind }: { kind: "saved" | "liked" }) {
   const { profile, ready, error, retry } = useAccount();
   if (!ready) return <AccountLoading />;
   if (error) return <main id="main" className="page"><Empty title="Your account could not load.">{error}<button className="button primary" onClick={retry}>Try again</button></Empty></main>;
-  if (!profile) return <Guest destination={`your ${kind} collection`} />;
+  if (!profile) return <Guest destination={kind === "saved" ? "your saved wallpapers" : "your liked wallpapers"} />;
   return (
     <main id="main" className="page collection-page">
       <div className="page-heading">
-        <span className="eyebrow">
-          {kind === "saved" ? "JUST FOR YOU" : "THE WORDS THAT RESONATED"}
-        </span>
         <h1>
-          Your {kind === "saved" ? "saved sparks" : "liked wallpapers"}
-          <span className="orange">.</span>
+          {kind === "saved" ? "Saved wallpapers" : "Liked wallpapers"}
         </h1>
         <p>
           {kind === "saved"
-            ? "A private collection of reminders worth keeping."
+            ? "Only you can see your saved collection."
             : "A little more of what you love."}
         </p>
       </div>
@@ -214,10 +210,7 @@ export function ProfilePage() {
       <PrivateGallery key={`${profile.id}-${tab}`} kind={tab} />
       <DeleteAccount />
       <div className="profile-bottom">
-        <p>
-          Demo profile · Preferences, likes and saves are stored on this browser
-          only.
-        </p>
+        <p>Signing out only affects this browser.</p>
         <button className="button secondary" onClick={signOut}>
           <LogOut size={17} />
           Sign out
@@ -264,10 +257,10 @@ function PrivateGallery({ kind }: { kind: "saved" | "liked" }) {
     void load().catch(()=>{if(!controller.signal.aborted)setError(true);}).finally(()=>{if(!controller.signal.aborted)setLoading(false);});
     return ()=>controller.abort();
   },[kind,pages,revision,retry,profile?.id]);
-  if(error)return <Empty title="Your collection couldn?t load.">Your choices are still saved.<button className="button primary" onClick={()=>setRetry(v=>v+1)}>Try again</button></Empty>;
+  if(error)return <Empty title="Your collection couldn’t load.">Your choices are still saved.<button className="button primary" onClick={()=>setRetry(v=>v+1)}>Try again</button></Empty>;
   if(loading&&!items.length)return <div className="skeleton skeleton-hero" aria-label="Loading your collection" aria-busy="true"/>;
-  if(items.length)return <><Gallery posts={items}/>{pages*8<total&&<button className="button primary" disabled={loading} onClick={()=>setPages(v=>v+1)}>{loading?"Loading?":"Load more"}</button>}</>;
-  return <Empty title={kind==="saved"?"Your collection starts with a spark.":"Find a message you love."}>Tap the {kind==="saved"?"bookmark":"heart"} on any wallpaper.<Link className="button primary" href="/explore">Find your next spark <ArrowUpRight size={17}/></Link></Empty>;
+  if(items.length)return <><Gallery posts={items}/>{pages*8<total&&<button className="button primary" disabled={loading} onClick={()=>setPages(v=>v+1)}>{loading?"Loading…":"Load more"}</button>}</>;
+  return <Empty title={kind==="saved"?"No saved wallpapers yet.":"Find a message you love."}>Tap the {kind==="saved"?"bookmark":"heart"} on any wallpaper.<Link className="button primary" href="/explore">Explore wallpapers <ArrowUpRight size={17}/></Link></Empty>;
 }
 function DeleteAccount(){
   const { signOut,openAuth }=useAccount();
@@ -282,7 +275,7 @@ function DeleteAccount(){
       setBusy(true);setMessage("");
       try{const result=await accountService.deleteAccount();sessionStorage.setItem("daily-spark-deletion",result.status);await signOut();window.location.assign("/auth/deleted");}
       catch(e){setMessage(e instanceof Error?e.message:"Deletion could not be requested.");}finally{setBusy(false);}
-    }}>{busy?"Requesting deletion?":"Confirm permanent deletion"}</button><button className="button secondary" onClick={()=>setConfirm(false)}>Cancel</button></div>}
+    }}>{busy?"Requesting deletion…":"Confirm permanent deletion"}</button><button className="button secondary" onClick={()=>setConfirm(false)}>Cancel</button></div>}
     {message&&<p role="alert">{message}</p>}
   </section>;
 }

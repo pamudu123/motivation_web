@@ -12,9 +12,11 @@ export async function api<T>(path: string, options: RequestInit = {}, authentica
     }});
   }
   let response = await send(token);
+  // One coordinated refresh and one retry; an exhausted session becomes a plain 401.
   if (authenticated && response.status === 401) {
-    const refreshed = await accessToken(true);
-    if (refreshed) response = await send(refreshed);
+    const refreshed = await accessToken(true).catch(() => null);
+    if (!refreshed) throw new ApiError(401, "unauthenticated", "Please sign in.");
+    response = await send(refreshed);
   }
   if (!response.ok) {
     const body = await response.json().catch(() => null);

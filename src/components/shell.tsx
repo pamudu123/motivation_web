@@ -21,7 +21,7 @@ const destinations = [
 ];
 export function Header() {
   const pathname = usePathname();
-  const { profile, openAuth } = useAccount();
+  const { profile } = useAccount();
   const router = useRouter();
   const previousPath = useRef(pathname);
   const previousHeading = useRef<Element | null>(null);
@@ -108,9 +108,12 @@ export function Header() {
                 {profile.displayName.charAt(0).toUpperCase()}
               </Link>
             ) : (
-              <button className="button sign-in" onClick={openAuth}>
+              <Link
+                className="button sign-in"
+                href={`/signin?next=${encodeURIComponent(pathname)}`}
+              >
                 Sign in <ArrowUpRight size={16} />
-              </button>
+              </Link>
             )}
           </div>
         </div>

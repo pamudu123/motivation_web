@@ -1,19 +1,20 @@
 import { api } from "./api";
-import { authClient, readPending, safeReturnPath } from "./auth";
+import { authClient, readPending, safeReturnPath, RETURN_KEY } from "./auth";
 import type { Profile, Theme, SearchResult, Reaction, ReactionResult } from "./models";
 export const accountService = {
   async read(): Promise<Profile | null> {
     if (!(await authClient().auth.getSession()).data.session) return null;
     return api<Profile>("/me", {}, true);
   },
-  async signIn(method: "google" | "email", email?: string) {
-    const returnPath = safeReturnPath(readPending()?.returnPath ?? window.location.pathname + window.location.search);
-    localStorage.setItem("daily-spark-return", returnPath);
+  // Sign-up and sign-in share one flow: continuing creates the account if it is new.
+  async signIn(method: "google" | "email", { email, returnPath }: { email?: string; returnPath?: string } = {}) {
+    const destination = safeReturnPath(readPending()?.returnPath ?? returnPath);
+    try { localStorage.setItem(RETURN_KEY, destination); } catch {}
     if (method === "google") {
       const { error } = await authClient().auth.signInWithOAuth({ provider: "google", options: { redirectTo: `${window.location.origin}/auth/callback` } });
       if (error) throw error;
     } else {
-      const { error } = await authClient().auth.signInWithOtp({ email: email!, options: { emailRedirectTo: `${window.location.origin}/auth/confirm` } });
+      const { error } = await authClient().auth.signInWithOtp({ email: email!.trim(), options: { shouldCreateUser: true, emailRedirectTo: `${window.location.origin}/auth/confirm` } });
       if (error) throw error;
     }
   },

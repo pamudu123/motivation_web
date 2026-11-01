@@ -1,6 +1,6 @@
 # Daily Spark: signup, sign-in, and saved wallpapers
 
-Status: implementation plan only. No application changes are authorised by this document.
+Status: code work implemented on 26 October 2026 (see §21). Hosted provider configuration and real-account verification remain outstanding.
 
 Prepared: 26 October 2026.
 
@@ -366,3 +366,27 @@ No paid-plan UI or infrastructure is part of this work. Theme onboarding, folder
 - [Supabase row-level security](https://supabase.com/docs/guides/database/postgres/row-level-security)
 
 Recheck provider documentation and installed SDK behaviour when implementing; hosted configuration was not inspected while preparing this plan.
+
+## 21. Implementation status (26 October 2026)
+
+Implemented in code:
+
+- `/signin` and `/signup` pages, and the guest-save dialog, share `AuthForm` (`src/components/auth-form.tsx`). Email requests pass `shouldCreateUser: true`. The form has a 60-second resend countdown and a "Use a different email" action, and it maps provider errors to plain language.
+- `safeReturnPath` defaults to `/saved` and rejects auth pages. The header and signed-out invitations link to the auth pages with `next`.
+- The callback no longer keeps a stale result after a failure. Errors offer "Try again" (back to `/signin`) and a browsing exit.
+- When a refresh fails, the browser signs out locally and shows the signed-out state. Profile/API failures keep the session and show retry.
+- Closing the dialog before a request abandons the pending save. If the replayed post returns 404, the save is dropped with a specific message; other failures keep it for retry.
+- The saved-page copy matches §13, and the false "Demo profile" note is removed.
+- Local `supabase/config.toml` sets both email templates and the callback redirects.
+
+No migration was needed. `/me/saved` already orders by save time (newest first) with an `editorial_date, id` tie-breaker, and it shows only published artwork. Profile creation is an idempotent upsert.
+
+Verified: `npm run typecheck`; `npm test` (7 tests); `npm run test:e2e` (8 fixture browser workflows). These cover axe on `/signin` and the save dialog, a malicious `next`, dialog cancellation, the signed-in redirect from `/signin`, and the exhausted-refresh fallback. They also cover the auth form's keyboard focus path, focus containment, a rate-limit error moving focus to a plain-language alert, the email-sent state, Escape restoring focus to Save, and reflow at 320px and 200% zoom. Supabase Auth calls are intercepted in these checks.
+
+Outstanding:
+
+- Hosted Google and SMTP setup, templates and redirect allowlists, then the real-account checks in §18. Fixture sessions do not prove these.
+- Privacy and terms links: no pages exist yet, so none are shown.
+- Privacy-conscious auth/save analytics: the app has no analytics layer yet.
+- The legacy `scripts/verify.mjs` and `scripts/verify-accessibility.mjs` still target the demo-era dialog. Their sign-in accessibility checks were ported to `scripts/verify-backend.mjs`, so they are not needed for this release.
+- At an artificial CSS `zoom: 2` (desktop media queries kept), the header's Sign in control overflows by about 22px. This predates this work. Real 200% and 400% browser zoom (640px and 320px viewports) reflow without overflow.
