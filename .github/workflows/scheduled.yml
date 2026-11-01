@@ -1,0 +1,38 @@
+# Free-plan stand-ins for the Docker deletion worker and an always-on backend.
+# Scheduled workflows run only from the default branch. See docs/deploy-free.md.
+name: Scheduled jobs
+
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: scheduled-jobs
+  cancel-in-progress: false
+
+jobs:
+  keep-awake:
+    # Render Free sleeps after 15 idle minutes; server pages give up after 15 seconds.
+    if: vars.BACKEND_URL != ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - run: curl -fsS --retry 3 --retry-delay 10 --max-time 90 "${{ vars.BACKEND_URL }}/api/v1/health/live"
+
+  retry-deletions:
+    if: vars.BACKEND_URL != ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    defaults:
+      run:
+        working-directory: backend
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY }}
+      SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - run: uv sync --frozen --no-dev
+      - run: uv run --no-dev python -m app.publisher retry-deletions
