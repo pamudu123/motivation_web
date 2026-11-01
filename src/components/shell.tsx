@@ -1,6 +1,7 @@
 "use client";
 import Link from "next/link";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
+import { motion } from "motion/react";
 import { focusMain } from "@/lib/focus";
 import { usePathname, useRouter } from "next/navigation";
 import {
@@ -25,6 +26,13 @@ export function Header() {
   const router = useRouter();
   const previousPath = useRef(pathname);
   const previousHeading = useRef<Element | null>(null);
+  const [scrolled, setScrolled] = useState(false);
+  useEffect(() => {
+    const update = () => setScrolled(window.scrollY > 8);
+    update();
+    window.addEventListener("scroll", update, { passive: true });
+    return () => window.removeEventListener("scroll", update);
+  }, []);
   useEffect(() => {
     if (previousPath.current === pathname) {
       previousHeading.current = document.querySelector("main h1");
@@ -66,7 +74,7 @@ export function Header() {
       >
         Skip to content
       </a>
-      <header className="header">
+      <header className={`header ${scrolled ? "scrolled" : ""}`}>
         <div className="header-inner">
           <Link href="/" className="wordmark" aria-label={`${site.name} home`}>
             <span className="brand-icon">
@@ -126,6 +134,14 @@ export function Header() {
             aria-current={pathname === href ? "page" : undefined}
             className={pathname === href ? "active" : ""}
           >
+            {pathname === href && (
+              <motion.span
+                layoutId="mobile-nav-pill"
+                className="mobile-nav-pill"
+                aria-hidden="true"
+                transition={{ type: "spring", stiffness: 500, damping: 38 }}
+              />
+            )}
             <Icon size={20} />
             <span>{label}</span>
           </Link>

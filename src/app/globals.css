@@ -3574,3 +3574,51 @@ select {
     box-shadow: 0 0 0 8px transparent;
   }
 }
+
+/* Images still downloading show a soft shimmer, then fade in. */
+.artwork {
+  transition: opacity 0.4s var(--ease);
+}
+.artwork.pending {
+  opacity: 0;
+}
+.card-art:has(.artwork.pending),
+.featured:has(.artwork.pending) {
+  background: linear-gradient(
+    100deg,
+    var(--paper-sunk) 30%,
+    var(--paper-raised) 50%,
+    var(--paper-sunk) 70%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.4s linear infinite;
+}
+
+/* Header lifts off the page once content scrolls under it. */
+.header {
+  transition:
+    box-shadow 0.25s var(--ease),
+    border-color 0.25s var(--ease);
+}
+.header.scrolled {
+  border-bottom-color: transparent;
+  box-shadow: 0 6px 24px rgba(22, 18, 14, 0.12);
+}
+@media (prefers-color-scheme: dark) {
+  .header.scrolled {
+    box-shadow: 0 6px 24px rgba(0, 0, 0, 0.5);
+  }
+}
+
+/* Mobile tabs: a highlight sits behind the current tab and slides between tabs. */
+.mobile-nav a {
+  position: relative;
+  isolation: isolate;
+}
+.mobile-nav-pill {
+  position: absolute;
+  inset: 0 var(--space-2);
+  z-index: -1;
+  border-radius: var(--radius-md);
+  background: var(--spark-soft);
+}
