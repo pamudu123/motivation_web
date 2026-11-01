@@ -10,7 +10,6 @@ import {
 import {
   ArrowRight,
   ArrowUpRight,
-  ArrowDown,
   Check,
   Monitor,
   Smartphone,
@@ -129,13 +128,6 @@ function PublishedToday({
           </span>
         </div>
       </section>
-      <div className="under-hero">
-        <p>Open it to try it on your screen.</p>
-        <a href="#daily" className="inline-link">
-          Jump to all five{" "}
-          <ArrowDown size={15} />
-        </a>
-      </div>
       <section id="daily" className="daily-section" data-sc-act="flow">
         <div className="section-heading">
           <div>
