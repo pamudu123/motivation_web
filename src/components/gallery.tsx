@@ -119,9 +119,10 @@ export function Card({
   return (
     <motion.article
       layout
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      transition={{ duration: 0.2, delay: Math.min(index, 4) * 0.035 }}
+      initial={{ opacity: 0, y: 10 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true, amount: 0.15 }}
+      transition={{ duration: 0.35, ease: [0.23, 1, 0.32, 1], delay: Math.min(index, 4) * 0.04 }}
       className="gallery-card"
       data-testid="gallery-card"
     >

@@ -476,17 +476,6 @@ button.chip:active,
 .format-chip strong {
   font-weight: 600;
 }
-.under-hero {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding-top: 12px;
-  font-size: 12px;
-  color: var(--muted);
-}
-.under-hero .inline-link {
-  color: var(--ink);
-}
 .section-heading {
   display: flex;
   justify-content: space-between;
@@ -1908,21 +1897,6 @@ input:not([type="checkbox"]) {
   .format-chip-icons svg {
     width: 19px;
   }
-  .under-hero {
-    align-items: start;
-    gap: 10px;
-    padding-top: 11px;
-  }
-  .under-hero p {
-    font-size: 10px;
-    max-width: 170px;
-  }
-  .under-hero .inline-link {
-    font-size: 9px;
-    gap: 4px;
-    min-height: 30px;
-    white-space: nowrap;
-  }
   .daily-section {
     padding-top: 33px;
   }
@@ -2595,10 +2569,6 @@ body {
 .format-chip-icons {
   color: var(--ink-muted);
 }
-.under-hero {
-  padding-top: var(--space-3);
-  font-size: 15px;
-}
 .daily-section {
   padding-top: var(--space-24);
 }
@@ -3249,13 +3219,6 @@ select {
   .edition time {
     font-size: 12px;
   }
-  .under-hero p,
-  .under-hero .inline-link {
-    font-size: 14px;
-  }
-  .under-hero p {
-    max-width: none;
-  }
   .daily-section,
   .mood-section,
   .archive-section,
@@ -3417,5 +3380,197 @@ select {
   .gallery-card:hover .card-art,
   .mood:hover > svg {
     transform: none;
+  }
+}
+
+/* Motion: small, calm movement that explains what changed. Everything here
+   is skipped for people who ask for reduced motion. */
+:root {
+  /* Slight overshoot for things the user touches; scroll and page motion stay on --ease. */
+  --spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.desktop-nav a {
+  position: relative;
+}
+.desktop-nav a.active {
+  box-shadow: none;
+}
+/* One indicator for every nav link: grows in on hover, stays for the current page. */
+.desktop-nav a:after,
+.desktop-nav a.active:after {
+  content: "";
+  position: absolute;
+  left: var(--space-3);
+  right: var(--space-3);
+  bottom: 0;
+  height: 3px;
+  border-radius: 3px 3px 0 0;
+  background: var(--spark);
+  transform: scaleX(0);
+  transition:
+    transform 0.25s var(--ease),
+    opacity 0.25s var(--ease);
+}
+.desktop-nav a:hover:after {
+  transform: scaleX(1);
+  opacity: 0.45;
+}
+.desktop-nav a.active:after {
+  transform: scaleX(1);
+  opacity: 1;
+}
+.wordmark .brand-icon {
+  transition: transform 0.35s var(--spring);
+}
+.button svg,
+.inline-link svg,
+.archive-link small svg {
+  transition: transform 0.3s var(--spring);
+}
+.reactions button svg {
+  transition: transform 0.3s var(--spring);
+}
+.mood,
+.archive-link > img {
+  transition:
+    background-color 0.18s var(--ease),
+    border-color 0.18s var(--ease),
+    color 0.18s var(--ease),
+    transform 0.35s var(--spring),
+    box-shadow 0.25s var(--ease);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  /* Route changes fade in instead of snapping. Opacity only, so fixed overlays are unaffected. */
+  main#main {
+    animation: page-in 0.25s var(--ease) both;
+  }
+
+  /* Hover and press feedback */
+  .wordmark:hover .brand-icon {
+    transform: rotate(-10deg) scale(1.1);
+  }
+  .button,
+  .icon-button,
+  .reactions button {
+    transition-timing-function: var(--spring);
+  }
+  .button:active,
+  .icon-button:active,
+  .reactions button:active {
+    transform: scale(0.96);
+  }
+  .button:hover svg,
+  .inline-link:hover svg,
+  .archive-link:hover small svg {
+    transform: translateX(4px);
+  }
+  .button:hover svg.lucide-arrow-down {
+    transform: translateY(3px);
+  }
+  .button:hover svg.lucide-arrow-up-right,
+  .archive-link:hover small svg {
+    transform: translate(3px, -3px);
+  }
+  .reactions button:hover svg {
+    transform: scale(1.15);
+  }
+  @media (hover: hover) and (pointer: fine) {
+    .mood:hover {
+      transform: translateY(-4px);
+      box-shadow: var(--shadow-lift);
+    }
+    .archive-link:hover > img {
+      transform: scale(1.04);
+    }
+  }
+  .reactions .is-liked svg,
+  .reactions .is-saved svg {
+    animation: heart 0.4s var(--spring);
+  }
+
+  /* "Today" marker breathes so the newest collection is easy to spot. */
+  .live-dot {
+    animation: pulse 3s ease-out infinite;
+  }
+
+  /* Home hero: copy rises in line by line, then the shapes settle into place. */
+  .welcome-copy > * {
+    animation: hero-rise 0.8s var(--ease) both;
+  }
+  .welcome-copy > :nth-child(2) { animation-delay: 0.08s; }
+  .welcome-copy > :nth-child(3) { animation-delay: 0.16s; }
+  .welcome-copy > :nth-child(4) { animation-delay: 0.24s; }
+  .welcome-art rect,
+  .welcome-art circle,
+  .welcome-art text {
+    transform-box: fill-box;
+    transform-origin: center;
+    animation: pop 0.7s var(--spring) both;
+  }
+  .welcome-art .a-spark { animation-delay: 0.2s; }
+  .welcome-art .a-ink { animation-delay: 0.28s; }
+  .welcome-art text { animation-delay: 0.4s; }
+  .welcome-art .a-start { animation-delay: 0.36s; }
+  .welcome-art .a-focus { animation-delay: 0.44s; }
+  .welcome-art .a-steady { animation-delay: 0.5s; }
+  .welcome-art .a-reset { animation-delay: 0.56s; }
+  .welcome-art .a-focus {
+    transition: transform 0.45s var(--spring);
+  }
+  .welcome-art:hover .a-focus {
+    transform: translateY(-12px);
+  }
+
+  /* Sections reveal as they scroll into view, where the browser supports it. */
+  @supports (animation-timeline: view()) {
+    .section-heading,
+    .edition,
+    .featured,
+    .mood,
+    .archive-link,
+    .closing-note,
+    .collection-pending,
+    .empty-state {
+      animation: rise linear both;
+      animation-timeline: view();
+      animation-range: entry 0% entry 30%;
+    }
+    .mood:nth-child(2) { animation-range: entry 3% entry 33%; }
+    .mood:nth-child(3) { animation-range: entry 6% entry 36%; }
+    .mood:nth-child(4) { animation-range: entry 9% entry 39%; }
+    .mood:nth-child(5) { animation-range: entry 12% entry 42%; }
+  }
+}
+@keyframes page-in {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+}
+@keyframes hero-rise {
+  from {
+    opacity: 0;
+    transform: translateY(28px);
+  }
+}
+@keyframes pop {
+  from {
+    opacity: 0;
+    transform: scale(0.6);
+  }
+}
+@keyframes pulse {
+  0% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--spark) 55%, transparent);
+  }
+  70%,
+  100% {
+    box-shadow: 0 0 0 8px transparent;
   }
 }
